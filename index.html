@@ -96,6 +96,32 @@
       max-width: 360px;
       line-height: 1.25;
     }
+    #fxLayer{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+    }
+    .pop{
+      position:absolute;
+      left:50%;
+      bottom:70px;
+      transform:translateX(-50%) translateY(0) scale(1);
+      font-weight:900;
+      font-size: clamp(22px, 3.2vw, 36px);
+      color:#fff;
+      text-shadow: 0 6px 20px rgba(0,0,0,0.55);
+      opacity:0;
+      will-change: transform, opacity;
+    }
+    .pop.show{
+      animation: popFloat 650ms ease-out forwards;
+    }
+    @keyframes popFloat{
+      0%   { opacity:0; transform:translateX(-50%) translateY(10px) scale(0.92); }
+      15%  { opacity:1; transform:translateX(-50%) translateY(0px)  scale(1.05); }
+      100% { opacity:0; transform:translateX(-50%) translateY(-55px) scale(1.00); }
+    }
+
   </style>
 </head>
 
@@ -109,6 +135,8 @@
   </div>
 
   <div id="score">Score: 0</div>
+  <div id="fxLayer"></div>
+
   <div id="hint">Older end: Cambrian (541 Ma) ← &nbsp;&nbsp;→ Present (0 Ma): Quaternary</div>
 
   <script type="module">
@@ -162,7 +190,30 @@
       Neogene:       "Neogene.png",
       Quaternary:    "Quaternary.png"
     };
+
+    const fxLayer = document.getElementById("fxLayer");
+
+    let streak = 0;
     
+    function pointsForStreak(streakCount) {
+      // 1->1, 2->2, 3->4, 4->8, ...
+      return 2 ** Math.max(0, streakCount - 1);
+    }
+    
+    function showPointsPop(text) {
+      const el = document.createElement("div");
+      el.className = "pop";
+      el.textContent = text;
+      fxLayer.appendChild(el);
+    
+      // trigger animation
+      requestAnimationFrame(() => el.classList.add("show"));
+    
+      // cleanup
+      setTimeout(() => el.remove(), 750);
+    }
+    
+        
     const texLoader = new THREE.TextureLoader();
     const logoTex = new Map();
     
@@ -490,12 +541,23 @@
     function evaluateSit() {
       const playerSeg = getSegmentForZ(player.position.z);
       const ok = playerSeg && currentPromptPeriod && (playerSeg.name === currentPromptPeriod.name);
-
-      if (ok) { flash("green"); setScore(score + 1); newPrompt(); }
-      else { flash("red"); if(score>0){setScore(score - 1);} }
-
+    
+      if (ok) {
+        streak += 1;
+        const gained = pointsForStreak(streak);
+        flash("green");
+        setScore(score + gained);
+        showPointsPop(`+${gained}`);
+        newPrompt();
+      } else {
+        streak = 0;
+        flash("red");
+        if(score>0){
+          setScore(score - 1);
+          showPointsPop(`-1`);
+        }
+      }
     }
-
     // -----------------------
     // Input handling
     // -----------------------
