@@ -148,6 +148,49 @@
     const scoreEl = document.getElementById("score");
     const flashEl = document.getElementById("flash");
 
+    const LOGO_PATHS = {
+      Cambrian:      "assets/logos/Cambrian.png",
+      Ordovician:    "assets/logos/Ordovician.png",
+      Silurian:      "assets/logos/Silurian.png",
+      Devonian:      "assets/logos/Devonian.png",
+      Carboniferous: "assets/logos/Carboniferous.png",
+      Permian:       "assets/logos/Permian.png",
+      Triassic:      "assets/logos/Triassic.png",
+      Jurassic:      "assets/logos/Jurassic.png",
+      Cretaceous:    "assets/logos/Cretaceous.png",
+      Paleogene:     "assets/logos/Paleogene.png",
+      Neogene:       "assets/logos/Neogene.png",
+      Quaternary:    "assets/logos/Quaternary.png"
+    };
+    
+    const texLoader = new THREE.TextureLoader();
+    const logoTex = new Map();
+    
+    function loadLogo(name) {
+      if (logoTex.has(name)) return logoTex.get(name);
+    
+      const url = LOGO_PATHS[name];
+      if (!url) return null;
+    
+      const t = texLoader.load(url);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 8;
+      logoTex.set(name, t);
+      return t;
+    }
+
+    let currentLogoName = null;
+
+    function updateShirtLogo(periodName) {
+      if (!periodName || periodName === currentLogoName) return;
+      const t = loadLogo(periodName);
+      if (t) {
+        shirtMat.map = t;
+        shirtMat.needsUpdate = true;
+        currentLogoName = periodName;
+      }
+    }
+
     // -----------------------
     // Scene setup
     // -----------------------
@@ -267,6 +310,29 @@
     head.position.y = 18.2;
     const feet = new THREE.Mesh(new THREE.BoxGeometry(6.8, 1.6, 6.8), accentMat);
     feet.position.y = 3.2;
+
+    // Shirt material: white shirt + logo texture (map) swapped by period
+    const shirtMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.9,
+      metalness: 0.0,
+      transparent: true
+    });
+    
+    // A front-facing plane on the torso
+    const shirt = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), shirtMat);
+    // PlaneGeometry faces +Z by default; put it slightly in front of torso
+    shirt.position.set(0, 10.8, 4.9);
+    shirt.rotation.y = 0;
+    shirt.renderOrder = 2;
+    
+    // Attach to the body so it follows the character
+    body.add(shirt);
+    
+    // Set an initial logo (optional)
+    shirtMat.map = loadLogo("Triassic");
+    shirtMat.needsUpdate = true;
+
 
     player.add(body, head, feet);
 
@@ -427,7 +493,8 @@
 
       // Glow the segment under the player
       setHoveredSegment(getSegmentForZ(player.position.z));
-
+      const seg = getSegmentForZ(player.position.z);
+      updateShirtLogo(seg?.name);
       // Track camera
       updateCamera(dt);
 
