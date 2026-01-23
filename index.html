@@ -751,17 +751,17 @@ input[type="text"]:focus{
     // -----------------------
     // Camera follow (track)
     // -----------------------
-
-    let orbitAngle = Math.atan2(camOffset.z, camOffset.x); // start roughly where your old cam was
-    const orbitRadius = Math.hypot(camOffset.x, camOffset.z); // reuse old offset magnitude
-    const orbitHeight = camOffset.y;                          // reuse old height
-    const orbitSpeed = 1.35;
     
     const camOffset = new THREE.Vector3(170, 110, 210);
     const camDesired = new THREE.Vector3();
     const lookDesired = new THREE.Vector3();
     const lookCurrent = new THREE.Vector3(0, 0, player.position.z);
 
+    let orbitAngle = Math.atan2(camOffset.z, camOffset.x); // start roughly where your old cam was
+    const orbitRadius = Math.hypot(camOffset.x, camOffset.z); // reuse old offset magnitude
+    const orbitHeight = camOffset.y;                          // reuse old height
+    const orbitSpeed = 1.35;
+    
     function updateCamera(dt) {
       // rotate with left/right arrows
       if (keys.ArrowLeft)  orbitAngle -= orbitSpeed * dt;
