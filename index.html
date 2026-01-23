@@ -381,10 +381,9 @@
       const playerSeg = getSegmentForZ(player.position.z);
       const ok = playerSeg && currentPromptPeriod && (playerSeg.name === currentPromptPeriod.name);
 
-      if (ok) { flash("green"); setScore(score + 1); }
-      else { flash("red"); setScore(score - 1); }
+      if (ok) { flash("green"); setScore(score + 1); newPrompt(); }
+      else { flash("red"); if(score>0){setScore(score - 1);} }
 
-      newPrompt();
     }
 
     // -----------------------
