@@ -1253,6 +1253,24 @@ input[type="text"]:focus{
     
         if (!hop.active && !sitLock) startHop(-1);
       }
+
+       if (e.code === "Space" && !sitLock) {
+        sitLock = true;
+    
+        // cancel hopping/holding so sit is deterministic
+        moveHold.active = false;
+        moveHold.dir = 0;
+        hop.active = false;
+        hop.frozen = false;
+    
+        setSitting(true);
+        evaluateSit();
+    
+        window.setTimeout(() => {
+          setSitting(false);
+          sitLock = false;
+        }, 320);
+      }
     
       // Space sit logic stays as-is below...
     }, { passive: false });
