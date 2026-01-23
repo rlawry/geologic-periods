@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Phanerozoic Sit-in-the-Period (Three.js)</title>
+  <title>Phanerozoic Mastery Path</title>
 
-  <!-- For consistent importmap support on GitHub Pages across browsers -->
+  <!-- Import maps on GitHub Pages (works across browsers) -->
   <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
   <script type="importmap">
   {
@@ -16,16 +16,20 @@
   }
   </script>
 
+  <!-- PDF generation -->
+  <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f14; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     #app { position: fixed; inset: 0; }
 
+    /* HUD */
     #prompt {
       position: fixed;
       top: 16px;
       left: 50%;
       transform: translateX(-50%);
-      max-width: min(840px, calc(100vw - 32px));
+      max-width: min(900px, calc(100vw - 32px));
       background: rgba(20, 26, 34, 0.92);
       color: #fff;
       border: 1px solid rgba(255,255,255,0.12);
@@ -38,6 +42,7 @@
       user-select: none;
       pointer-events: none;
       font-size: 18px;
+      z-index: 20;
     }
     #prompt .small {
       display: block;
@@ -52,14 +57,145 @@
       left: 50%;
       transform: translateX(-50%);
       color: #fff;
-      font-weight: 800;
+      font-weight: 900;
       font-size: clamp(28px, 4vw, 44px);
       letter-spacing: 0.5px;
       text-shadow: 0 6px 20px rgba(0,0,0,0.45);
       user-select: none;
       pointer-events: none;
+      z-index: 20;
     }
 
+    #sidePanel {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: min(360px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      background: rgba(15, 19, 26, 0.92);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 12px 12px 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+      backdrop-filter: blur(6px);
+      user-select: none;
+      z-index: 20;
+    }
+    #sidePanel h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      letter-spacing: 0.3px;
+      color: rgba(255,255,255,0.95);
+    }
+    .kv {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px 10px;
+      font-size: 13px;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+    .kv div:nth-child(odd){ color: rgba(255,255,255,0.78); }
+    .kv div:nth-child(even){ font-weight: 800; }
+
+    .tierTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .tierTable th, .tierTable td {
+      padding: 8px 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+      text-align: left;
+      vertical-align: top;
+    }
+    .tierTable th { font-size: 12px; color: rgba(255,255,255,0.72); font-weight: 800; }
+    .tierRow.active td{
+      background: rgba(255,255,255,0.08);
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.14);
+      white-space: nowrap;
+    }
+
+    /* Full-screen overlays */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(4px);
+      z-index: 40;
+    }
+    .panel {
+      width: min(920px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      background: rgba(15, 19, 26, 0.94);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 18px;
+      box-shadow: 0 14px 55px rgba(0,0,0,0.5);
+      color: #fff;
+      padding: 18px;
+    }
+    .panel h1 { margin: 0 0 10px; font-size: 24px; letter-spacing: 0.4px; }
+    .panel p { margin: 8px 0; color: rgba(255,255,255,0.82); line-height: 1.35; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .card h2 { margin: 0 0 8px; font-size: 16px; }
+    .btnRow { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    button {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.10);
+      color: #fff;
+      font-weight: 900;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    button.primary {
+      background: rgba(34, 197, 94, 0.24);
+      border-color: rgba(34, 197, 94, 0.40);
+    }
+    button.warn {
+      background: rgba(255, 23, 68, 0.20);
+      border-color: rgba(255, 23, 68, 0.36);
+    }
+    button:active { transform: translateY(1px); }
+
+    input[type="text"]{
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.25);
+      color: #fff;
+      font-weight: 700;
+      outline: none;
+    }
+    .muted { color: rgba(255,255,255,0.72); font-size: 13px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+
+    /* Flash feedback */
     #flash {
       position: fixed;
       inset: 0;
@@ -67,11 +203,34 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 180ms ease;
+      z-index: 30;
     }
     #flash.on { opacity: 0.85; }
     #flash.green { background: #00c853; }
     #flash.red { background: #ff1744; }
 
+    /* +points animation */
+    #fxLayer{ position:fixed; inset:0; pointer-events:none; z-index: 25; }
+    .pop{
+      position:absolute;
+      left:50%;
+      bottom:70px;
+      transform:translateX(-50%) translateY(0) scale(1);
+      font-weight: 950;
+      font-size: clamp(22px, 3.2vw, 36px);
+      color:#fff;
+      text-shadow: 0 6px 20px rgba(0,0,0,0.55);
+      opacity:0;
+      will-change: transform, opacity;
+    }
+    .pop.show{ animation: popFloat 650ms ease-out forwards; }
+    @keyframes popFloat{
+      0%   { opacity:0; transform:translateX(-50%) translateY(10px) scale(0.92); }
+      15%  { opacity:1; transform:translateX(-50%) translateY(0px)  scale(1.05); }
+      100% { opacity:0; transform:translateX(-50%) translateY(-55px) scale(1.00); }
+    }
+
+    /* Period labels (CSS2DRenderer) */
     .label {
       padding: 4px 8px;
       border-radius: 10px;
@@ -85,66 +244,135 @@
       text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     }
 
-    #hint {
-      position: fixed;
-      left: 16px;
-      bottom: 16px;
-      color: rgba(255,255,255,0.72);
-      font-size: 12px;
-      user-select: none;
-      pointer-events: none;
-      max-width: 360px;
-      line-height: 1.25;
-    }
-    #fxLayer{
-      position:fixed;
-      inset:0;
-      pointer-events:none;
-    }
-    .pop{
-      position:absolute;
-      left:50%;
-      bottom:70px;
-      transform:translateX(-50%) translateY(0) scale(1);
-      font-weight:900;
-      font-size: clamp(22px, 3.2vw, 36px);
-      color:#fff;
-      text-shadow: 0 6px 20px rgba(0,0,0,0.55);
-      opacity:0;
-      will-change: transform, opacity;
-    }
-    .pop.show{
-      animation: popFloat 650ms ease-out forwards;
-    }
-    @keyframes popFloat{
-      0%   { opacity:0; transform:translateX(-50%) translateY(10px) scale(0.92); }
-      15%  { opacity:1; transform:translateX(-50%) translateY(0px)  scale(1.05); }
-      100% { opacity:0; transform:translateX(-50%) translateY(-55px) scale(1.00); }
-    }
-
+    .hidden { display: none !important; }
   </style>
 </head>
 
 <body>
   <div id="app"></div>
   <div id="flash"></div>
+  <div id="fxLayer"></div>
 
-  <div id="prompt">
+  <div id="prompt" class="hidden">
     <div id="promptMain">Loading…</div>
     <span class="small">Move: ↑ / ↓ &nbsp;•&nbsp; Sit: Space</span>
   </div>
 
-  <div id="score">Score: 0</div>
-  <div id="fxLayer"></div>
+  <div id="score" class="hidden">Score: 0</div>
 
-  <div id="hint">Older end: Cambrian (541 Ma) ← &nbsp;&nbsp;→ Present (0 Ma): Quaternary</div>
+  <div id="sidePanel" class="hidden">
+    <h3>Scoring & Tiers</h3>
+    <div class="kv">
+      <div>Path</div><div id="uiPath">—</div>
+      <div>Question</div><div id="uiQ">—</div>
+      <div>Streak</div><div id="uiStreak">0</div>
+      <div>Next correct</div><div id="uiNext">+1</div>
+      <div>Max possible</div><div id="uiMax">—</div>
+    </div>
+    <table class="tierTable">
+      <thead>
+        <tr><th>Tier title</th><th>Min score</th><th>Gradebook</th></tr>
+      </thead>
+      <tbody id="tierBody"></tbody>
+    </table>
+    <p class="muted" style="margin-top:10px">
+      Wrong seat: <span class="mono">-1</span> and streak resets.
+    </p>
+  </div>
+
+  <!-- Start / Path selection -->
+  <div id="startOverlay" class="overlay">
+    <div class="panel">
+      <h1>Phanerozoic Mastery Path</h1>
+      <p>
+        Walk the Phanerozoic timeline and <b>sit</b> in the correct geologic period for each prompt (in <b>Ma</b>, millions of years ago).
+      </p>
+
+      <div class="row" style="margin-top:12px">
+        <div class="card">
+          <h2>Student name (for certificate)</h2>
+          <input id="studentName" type="text" placeholder="Type your name..." maxlength="64" />
+          <p class="muted">This prints on the PDF certificate at the end.</p>
+        </div>
+
+        <div class="card">
+          <h2>Choose your challenge</h2>
+          <div class="btnRow">
+            <button id="btnNovice" class="primary">Novice Path (10 questions)</button>
+            <button id="btnMastery" class="primary">Mastery Path (20 questions)</button>
+          </div>
+          <p class="muted">
+            You will complete the full set, then decide to retry or settle and print your certificate.
+          </p>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="card">
+          <h2>How scoring works (combo = exponential)</h2>
+          <p>
+            Each correct answer increases your <b>streak</b> and awards:
+            <span class="mono">1, 2, 4, 8, 16, …</span> points (doubling each time).
+          </p>
+          <p>
+            A wrong answer is <span class="mono">-1</span> point and your streak resets to 0.
+          </p>
+          <p class="muted">
+            Perfect combo maximum for <span class="mono">N</span> questions is <span class="mono">2^N − 1</span>.
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>Tiers → Gradebook score (out of 10)</h2>
+          <p>
+            Your final <b>Tier Title</b> is based on your <b>final score</b>. Each tier converts to a gradebook score out of 10.
+          </p>
+          <p class="muted">
+            You’ll see the tier table in-game in the right panel, and your current tier is highlighted live.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- End screen -->
+  <div id="endOverlay" class="overlay hidden">
+    <div class="panel">
+      <h1>Challenge complete</h1>
+      <div class="row" style="margin-top:12px">
+        <div class="card">
+          <h2>Results</h2>
+          <p><b>Final score:</b> <span id="endScore" class="mono"></span></p>
+          <p><b>Tier earned:</b> <span id="endTier" class="pill"></span></p>
+          <p><b>Gradebook score:</b> <span id="endGrade" class="mono"></span> / 10</p>
+          <p class="muted">If you settle, your certificate will print these values.</p>
+        </div>
+
+        <div class="card">
+          <h2>Decision</h2>
+          <p><b>Try again for greater greatness?</b> (restarts the same path)</p>
+          <div class="btnRow">
+            <button id="btnTryAgain" class="primary">Try again for greater greatness</button>
+            <button id="btnSettle" class="warn">Settle for less than perfection (print certificate)</button>
+          </div>
+          <p class="muted" style="margin-top:10px">
+            If the PDF doesn’t open, your browser may block popups. You can still download it.
+          </p>
+        </div>
+      </div>
+
+      <div class="btnRow" style="margin-top:12px">
+        <button id="btnBackToStart">Back to path selection</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module">
     import * as THREE from "three";
     import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 
     // -----------------------
-    // Phanerozoic periods (Ma)
+    // Periods (Ma) and shirt logos
     // -----------------------
     const PERIODS = [
       { name: "Cambrian",      start: 541.0,    end: 485.4,   color: 0x2ecc71 },
@@ -161,114 +389,92 @@
       { name: "Quaternary",    start: 2.58,     end: 0.0,     color: 0xecf0f1 }
     ];
 
-    const TOTAL_MA = 541.0;
-    const SLAB_LEN = 780;      // along Z
-    const SLAB_W = 120;        // along X
-    const SLAB_H = 18;         // along Y
-
-    function maToZ(ma) {
-      const t = (TOTAL_MA - ma) / TOTAL_MA;
-      return (t * SLAB_LEN) - SLAB_LEN / 2;
-    }
-
-    const app = document.getElementById("app");
-    const promptMain = document.getElementById("promptMain");
-    const scoreEl = document.getElementById("score");
-    const flashEl = document.getElementById("flash");
-
-    const LOGO_PATHS = {
-      Cambrian:      "Cambrian.png",
-      Ordovician:    "Ordovician.png",
-      Silurian:      "Silurian.png",
-      Devonian:      "Devonian.png",
-      Carboniferous: "Carboniferous.png",
-      Permian:       "Permian.png",
-      Triassic:      "Triassic.png",
-      Jurassic:      "Jurassic.png",
-      Cretaceous:    "Cretaceous.png",
-      Paleogene:     "Paleogene.png",
-      Neogene:       "Neogene.png",
-      Quaternary:    "Quaternary.png"
-    };
-
-    const fxLayer = document.getElementById("fxLayer");
-
-    let streak = 0;
-    
-    function pointsForStreak(streakCount) {
-      // 1->1, 2->2, 3->4, 4->8, ...
-      return 2 ** Math.max(0, streakCount - 1);
-    }
-    
-    function showPointsPop(text) {
-      const el = document.createElement("div");
-      el.className = "pop";
-      el.textContent = text;
-      fxLayer.appendChild(el);
-    
-      // trigger animation
-      requestAnimationFrame(() => el.classList.add("show"));
-    
-      // cleanup
-      setTimeout(() => el.remove(), 750);
-    }
-    
-        
+    // Place your downloaded period PNGs here:
+    // assets/logos/Cambrian.png ... assets/logos/Quaternary.png
+    const LOGO_PATHS = Object.fromEntries(PERIODS.map(p => [p.name, `assets/logos/${p.name}.png`]));
     const texLoader = new THREE.TextureLoader();
-    const logoTex = new Map();
-    
-    function loadLogo(name) {
-      if (logoTex.has(name)) return logoTex.get(name);
-    
-      const url = LOGO_PATHS[name];
+    const logoTexCache = new Map();
+
+    function loadLogo(periodName) {
+      if (!periodName) return null;
+      if (logoTexCache.has(periodName)) return logoTexCache.get(periodName);
+      const url = LOGO_PATHS[periodName];
       if (!url) return null;
-    
       const t = texLoader.load(url);
       t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = 8;
-      logoTex.set(name, t);
+      logoTexCache.set(periodName, t);
       return t;
     }
 
-    let currentLogoName = null;
+    // -----------------------
+    // Tier definitions (score -> title -> gradebook points out of 10)
+    // Thresholds use (2^k - 1) milestones to reflect the combo/exponential nature.
+    // -----------------------
+    const TIERS_10 = [
+      { title: "Temporal Tourist",          minScore: 0,    grade: 2 },
+      { title: "Novice Navigator",          minScore: 31,   grade: 4 },   // 2^5-1
+      { title: "Era Adept",                 minScore: 127,  grade: 6 },   // 2^7-1
+      { title: "Period Pro",                minScore: 511,  grade: 8 },   // 2^9-1
+      { title: "Phanerozoic Master",        minScore: 1023, grade: 10 }   // 2^10-1
+    ];
 
-    // Make tiny periods playable (Quaternary / Neogene etc.)
-    const MIN_SEG_LEN = 26; // world units; adjust 18–40 to taste
-    
-    function buildZLayout(periods, slabLen) {
-      const durations = periods.map(p => p.start - p.end);
-      const totalDur = durations.reduce((a, b) => a + b, 0);
-    
-      const n = periods.length;
-      const minTotal = MIN_SEG_LEN * n;
-      const remainder = Math.max(0, slabLen - minTotal);
-    
-      // Length per period: MIN_SEG_LEN + proportional remainder
-      const segLens = durations.map(d => MIN_SEG_LEN + (totalDur ? remainder * (d / totalDur) : 0));
-    
-      // Ensure exact fit to slab (avoid rounding drift): force last segment to end at +slabLen/2
-      let z = -slabLen / 2;
-      const out = [];
-      for (let i = 0; i < periods.length; i++) {
-        const len = (i === periods.length - 1) ? (slabLen / 2 - z) : segLens[i];
-        const zMin = z;
-        const zMax = z + len;
-        out.push({ zMin, zMax, zCenter: (zMin + zMax) / 2, segLen: Math.max(1, zMax - zMin) });
-        z = zMax;
-      }
-      return out;
+    const TIERS_20 = [
+      { title: "Temporal Tourist",          minScore: 0,        grade: 2 },
+      { title: "Strat Student",             minScore: 255,      grade: 4 },   // 2^8-1
+      { title: "Era Adept",                 minScore: 4095,     grade: 6 },   // 2^12-1
+      { title: "Period Pro",                minScore: 65535,    grade: 8 },   // 2^16-1
+      { title: "Eon Elite",                 minScore: 262143,   grade: 9 },   // 2^18-1
+      { title: "Phanerozoic Grandmaster",   minScore: 1048575,  grade: 10 }   // 2^20-1
+    ];
+
+    function formatInt(n) {
+      return Math.trunc(n).toLocaleString("en-US");
     }
 
-
-    function updateShirtLogo(periodName) {
-      if (!periodName || periodName === currentLogoName) return;
-      const t = loadLogo(periodName);
-      if (t) {
-        shirtMat.map = t;
-        shirtMat.needsUpdate = true;
-        currentLogoName = periodName;
-      }
+    function getTiersForN(n) {
+      return n === 20 ? TIERS_20 : TIERS_10;
     }
+
+    function getTierForScore(score, n) {
+      const tiers = getTiersForN(n);
+      const s = Math.max(0, Math.trunc(score));
+      let best = tiers[0];
+      for (const t of tiers) if (s >= t.minScore) best = t;
+      return best;
+    }
+
+    // -----------------------
+    // DOM
+    // -----------------------
+    const app = document.getElementById("app");
+    const promptEl = document.getElementById("prompt");
+    const promptMain = document.getElementById("promptMain");
+    const scoreEl = document.getElementById("score");
+    const sidePanel = document.getElementById("sidePanel");
+    const tierBody = document.getElementById("tierBody");
+    const fxLayer = document.getElementById("fxLayer");
+    const flashEl = document.getElementById("flash");
+
+    const startOverlay = document.getElementById("startOverlay");
+    const endOverlay = document.getElementById("endOverlay");
+
+    const studentNameInput = document.getElementById("studentName");
+    const btnNovice = document.getElementById("btnNovice");
+    const btnMastery = document.getElementById("btnMastery");
+
+    const uiPath = document.getElementById("uiPath");
+    const uiQ = document.getElementById("uiQ");
+    const uiStreak = document.getElementById("uiStreak");
+    const uiNext = document.getElementById("uiNext");
+    const uiMax = document.getElementById("uiMax");
+
+    const endScore = document.getElementById("endScore");
+    const endTier = document.getElementById("endTier");
+    const endGrade = document.getElementById("endGrade");
+    const btnTryAgain = document.getElementById("btnTryAgain");
+    const btnSettle = document.getElementById("btnSettle");
+    const btnBackToStart = document.getElementById("btnBackToStart");
 
     // -----------------------
     // Scene setup
@@ -297,7 +503,7 @@
     scene.add(dir);
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(2200, 2200),
+      new THREE.PlaneGeometry(2400, 2400),
       new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 1.0, metalness: 0.0 })
     );
     ground.rotation.x = -Math.PI / 2;
@@ -305,8 +511,36 @@
     scene.add(ground);
 
     // -----------------------
-    // Slab + segments
+    // Slab layout (make thin periods playable)
     // -----------------------
+    const SLAB_LEN = 780;
+    const SLAB_W = 120;
+    const SLAB_H = 18;
+
+    const MIN_SEG_LEN = 26; // makes Quaternary hittable
+
+    function buildZLayout(periods, slabLen) {
+      const durations = periods.map(p => p.start - p.end);
+      const totalDur = durations.reduce((a, b) => a + b, 0);
+
+      const n = periods.length;
+      const minTotal = MIN_SEG_LEN * n;
+      const remainder = Math.max(0, slabLen - minTotal);
+
+      const segLens = durations.map(d => MIN_SEG_LEN + (totalDur ? remainder * (d / totalDur) : 0));
+
+      let z = -slabLen / 2;
+      const out = [];
+      for (let i = 0; i < periods.length; i++) {
+        const len = (i === periods.length - 1) ? (slabLen / 2 - z) : segLens[i];
+        const zMin = z;
+        const zMax = z + len;
+        out.push({ zMin, zMax, zCenter: (zMin + zMax) / 2, segLen: Math.max(1, zMax - zMin) });
+        z = zMax;
+      }
+      return out;
+    }
+
     const slabGroup = new THREE.Group();
     scene.add(slabGroup);
 
@@ -319,14 +553,13 @@
     const topY = SLAB_H / 2 + 0.6;
     const segH = 1.2;
 
-    // Store meshes/materials so we can "glow" the one the player is over
     const layout = buildZLayout(PERIODS, SLAB_LEN);
-    
     const periodSegments = [];
+
     for (let i = 0; i < PERIODS.length; i++) {
       const p = PERIODS[i];
       const L = layout[i];
-    
+
       const segMat = new THREE.MeshStandardMaterial({
         color: p.color,
         roughness: 0.65,
@@ -334,15 +567,14 @@
         emissive: new THREE.Color(p.color),
         emissiveIntensity: 0.0
       });
-    
+
       const seg = new THREE.Mesh(
         new THREE.BoxGeometry(SLAB_W + 0.6, segH, L.segLen),
         segMat
       );
       seg.position.set(0, topY, L.zCenter);
       slabGroup.add(seg);
-    
-      // Divider at boundary (skip the very last boundary)
+
       if (i !== PERIODS.length - 1) {
         const divider = new THREE.Mesh(
           new THREE.BoxGeometry(SLAB_W + 1.2, segH + 0.01, 0.8),
@@ -351,15 +583,14 @@
         divider.position.set(0, topY + 0.01, L.zMax);
         slabGroup.add(divider);
       }
-    
-      // Label
+
       const labelDiv = document.createElement("div");
       labelDiv.className = "label";
       labelDiv.textContent = p.name;
       const labelObj = new CSS2DObject(labelDiv);
       labelObj.position.set(0, topY + 6.0, L.zCenter);
       slabGroup.add(labelObj);
-    
+
       periodSegments.push({
         ...p,
         zMin: L.zMin,
@@ -370,7 +601,6 @@
       });
     }
 
-
     function makeEndLabel(text, z) {
       const div = document.createElement("div");
       div.className = "label";
@@ -379,11 +609,11 @@
       obj.position.set(0, topY + 14, z);
       slabGroup.add(obj);
     }
-    makeEndLabel("541 Ma (Cambrian start)", -SLAB_LEN / 2);
-    makeEndLabel("0 Ma (Present)", SLAB_LEN / 2);
+    makeEndLabel("Older (Cambrian)", -SLAB_LEN / 2);
+    makeEndLabel("Present (0 Ma)", SLAB_LEN / 2);
 
     // -----------------------
-    // Person (player)
+    // Player
     // -----------------------
     const player = new THREE.Group();
     scene.add(player);
@@ -398,75 +628,108 @@
     const feet = new THREE.Mesh(new THREE.BoxGeometry(6.8, 1.6, 6.8), accentMat);
     feet.position.y = 3.2;
 
-    // Shirt logo should be readable regardless of lighting
-    const shirtMat = new THREE.MeshBasicMaterial({
-      transparent: true,
-      alphaTest: 0.05,                 // helps PNG transparency edges
-      side: THREE.DoubleSide           // critical if it ever flips
-    });
-    
-    const shirt = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), shirtMat);
-    
-    // Put it OUTSIDE the torso (increase Z until it’s clearly in front)
-    shirt.position.set(0, 10.8, 6.6);
-    
-    // Because player/body is rotated PI, rotate the shirt so its front faces the camera
-    shirt.rotation.y = Math.PI;
-    
-    // Attach to body so it moves with the character
-    body.add(shirt);
-    
-    // Optional: ensure it draws on top if you get occasional z-fighting
-    shirt.renderOrder = 10;
-    
-    // Set an initial logo (optional)
-    shirtMat.map = loadLogo("Triassic");
-    shirtMat.needsUpdate = true;
-
-
     player.add(body, head, feet);
 
     const playerYStanding = topY + segH / 2 + 9.0;
-    function centerZForPeriod(name) {
-      return periodSegments.find(s => s.name === name)?.zCenter ?? 0;
-    }
-    
-    player.position.set(0, playerYStanding, centerZForPeriod("Jurassic"));
+    player.position.set(0, playerYStanding, periodSegments.find(s => s.name === "Jurassic")?.zCenter ?? 0);
+    player.rotation.y = Math.PI; // keep consistent facing
 
-    player.rotation.y = Math.PI / 2;
+    // Shirt (logo)
+    const shirtMat = new THREE.MeshBasicMaterial({
+      transparent: true,
+      alphaTest: 0.05,
+      side: THREE.DoubleSide
+    });
+    const shirt = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), shirtMat);
+    shirt.position.set(0, 10.8, 6.6);  // outside torso
+    shirt.rotation.y = Math.PI;        // initial facing (because player faces -Z)
+    body.add(shirt);
+
+    let currentLogoName = null;
+    function updateShirtLogo(periodName) {
+      if (!periodName || periodName === currentLogoName) return;
+      const t = loadLogo(periodName);
+      if (t) {
+        shirtMat.map = t;
+        shirtMat.needsUpdate = true;
+        currentLogoName = periodName;
+      }
+    }
+
+    // Billboard shirt to camera around Y so it always faces viewer
+    function faceShirtToCameraUpright() {
+      const shirtWorld = new THREE.Vector3();
+      shirt.getWorldPosition(shirtWorld);
+
+      const camLocal = body.worldToLocal(camera.position.clone());
+      const shirtLocal = body.worldToLocal(shirtWorld.clone());
+
+      const dx = camLocal.x - shirtLocal.x;
+      const dz = camLocal.z - shirtLocal.z;
+      shirt.rotation.set(0, Math.atan2(dx, dz), 0);
+    }
 
     // -----------------------
     // Camera follow (track)
     // -----------------------
-    // Camera stays on a "track" with fixed X/Y, Z follows player with smoothing.
-    const camOffset = new THREE.Vector3(170, 110, 210); // x, y, z relative (z is + in front of player)
+    const camOffset = new THREE.Vector3(170, 110, 210);
     const camDesired = new THREE.Vector3();
     const lookDesired = new THREE.Vector3();
     const lookCurrent = new THREE.Vector3(0, 0, player.position.z);
 
     function updateCamera(dt) {
-      const alpha = 1 - Math.exp(-dt * 6.5); // smoothing
+      const alpha = 1 - Math.exp(-dt * 6.5);
       camDesired.set(camOffset.x, camOffset.y, player.position.z + camOffset.z);
       camera.position.lerp(camDesired, alpha);
 
-      // look at the slab center near the player
       lookDesired.set(0, 0, player.position.z);
       lookCurrent.lerp(lookDesired, alpha);
       camera.lookAt(lookCurrent);
     }
 
     // -----------------------
-    // Game state
+    // Game logic (finite-question challenge + combo scoring)
     // -----------------------
     const keys = { ArrowUp: false, ArrowDown: false };
+    let isPlaying = false;
+
+    let totalQuestions = 0;
+    let answered = 0;
+
     let score = 0;
+    let streak = 0;
 
     let currentPromptMa = null;
     let currentPromptPeriod = null;
     let sitLock = false;
 
-    // Hover-glow state (segment under player)
     let hoveredSeg = null;
+
+    function pointsForStreak(streakCount) {
+      return 2 ** Math.max(0, streakCount - 1); // 1,2,4,8,...
+    }
+
+    function setScore(v) {
+      score = v;
+      scoreEl.textContent = `Score: ${formatInt(score)}`;
+      updateTierUI();
+    }
+
+    function showPointsPop(text) {
+      const el = document.createElement("div");
+      el.className = "pop";
+      el.textContent = text;
+      fxLayer.appendChild(el);
+      requestAnimationFrame(() => el.classList.add("show"));
+      setTimeout(() => el.remove(), 750);
+    }
+
+    function flash(colorClass) {
+      flashEl.classList.remove("green", "red", "on");
+      flashEl.classList.add(colorClass, "on");
+      window.setTimeout(() => flashEl.classList.remove("on"), 180);
+      window.setTimeout(() => flashEl.classList.remove(colorClass), 520);
+    }
 
     function getPeriodForMa(ma) {
       for (const p of PERIODS) {
@@ -487,19 +750,16 @@
     function setHoveredSegment(seg) {
       if (hoveredSeg === seg) return;
 
-      // clear previous
       if (hoveredSeg) {
         hoveredSeg.mat.emissiveIntensity = 0.0;
         hoveredSeg.mesh.scale.y = 1.0;
         hoveredSeg.mesh.position.y = topY;
       }
-
       hoveredSeg = seg;
 
-      // set new
       if (hoveredSeg) {
-        hoveredSeg.mat.emissiveIntensity = 0.95;    // "glow"
-        hoveredSeg.mesh.scale.y = 1.35;            // slight lift emphasis
+        hoveredSeg.mat.emissiveIntensity = 0.95;
+        hoveredSeg.mesh.scale.y = 1.35;
         hoveredSeg.mesh.position.y = topY + 0.25;
       }
     }
@@ -509,19 +769,46 @@
       const period = getPeriodForMa(ma);
       currentPromptMa = ma;
       currentPromptPeriod = period;
-      promptMain.textContent = `Sit at: ${ma} million years ago (Ma)`;
+
+      promptMain.textContent = `Question ${answered + 1} of ${totalQuestions}: Sit at ${ma} million years ago (Ma)`;
+      updateHUD();
     }
 
-    function setScore(v) {
-      score = v;
-      scoreEl.textContent = `Score: ${score}`;
+    function updateHUD() {
+      uiPath.textContent = totalQuestions === 20 ? "Mastery Path (20)" : "Novice Path (10)";
+      uiQ.textContent = `${answered + 1} / ${totalQuestions}`;
+      uiStreak.textContent = String(streak);
+      uiNext.textContent = `+${formatInt(pointsForStreak(streak + 1))}`;
+      uiMax.textContent = formatInt((2 ** totalQuestions) - 1);
     }
 
-    function flash(colorClass) {
-      flashEl.classList.remove("green", "red", "on");
-      flashEl.classList.add(colorClass, "on");
-      window.setTimeout(() => flashEl.classList.remove("on"), 180);
-      window.setTimeout(() => flashEl.classList.remove(colorClass), 520);
+    function renderTierTable() {
+      const tiers = getTiersForN(totalQuestions);
+      tierBody.innerHTML = "";
+      for (const t of tiers) {
+        const tr = document.createElement("tr");
+        tr.dataset.minScore = String(t.minScore);
+        tr.innerHTML = `
+          <td><span class="pill">${t.title}</span></td>
+          <td class="mono">${formatInt(t.minScore)}</td>
+          <td class="mono">${t.grade}/10</td>
+        `;
+        tierBody.appendChild(tr);
+      }
+      updateTierUI();
+    }
+
+    function updateTierUI() {
+      if (!totalQuestions) return;
+      const tiers = getTiersForN(totalQuestions);
+      const tier = getTierForScore(score, totalQuestions);
+
+      const rows = tierBody.querySelectorAll("tr");
+      rows.forEach(r => r.classList.remove("active"));
+      for (const r of rows) {
+        const min = Number(r.dataset.minScore || "0");
+        if (min === tier.minScore) r.classList.add("active");
+      }
     }
 
     function setSitting(isSitting) {
@@ -538,30 +825,208 @@
       }
     }
 
+    function finishGame() {
+      isPlaying = false;
+      sitLock = false;
+      promptEl.classList.add("hidden");
+
+      const tier = getTierForScore(score, totalQuestions);
+      endScore.textContent = formatInt(score);
+      endTier.textContent = tier.title;
+      endGrade.textContent = String(tier.grade);
+
+      endOverlay.classList.remove("hidden");
+    }
+
     function evaluateSit() {
       const playerSeg = getSegmentForZ(player.position.z);
       const ok = playerSeg && currentPromptPeriod && (playerSeg.name === currentPromptPeriod.name);
-    
+
       if (ok) {
         streak += 1;
         const gained = pointsForStreak(streak);
         flash("green");
         setScore(score + gained);
-        showPointsPop(`+${gained}`);
+        showPointsPop(`+${formatInt(gained)}`);
         newPrompt();
       } else {
         streak = 0;
         flash("red");
-        if(score>0){
-          setScore(score - 1);
-          showPointsPop(`-1`);
-        }
+        if(score>0){setScore(score - 1);}
+        showPointsPop(`-1`);
+      }
+
+      answered += 1;
+
+      if (answered >= totalQuestions) {
+        finishGame();
+      } else {
+        
       }
     }
+
     // -----------------------
-    // Input handling
+    // Start / Restart
+    // -----------------------
+    function startGame(nQuestions) {
+      totalQuestions = nQuestions;
+      answered = 0;
+      streak = 0;
+      setScore(0);
+
+      // UI
+      startOverlay.classList.add("hidden");
+      endOverlay.classList.add("hidden");
+      promptEl.classList.remove("hidden");
+      scoreEl.classList.remove("hidden");
+      sidePanel.classList.remove("hidden");
+
+      renderTierTable();
+      updateHUD();
+
+      // place player mid-ish
+      player.position.z = periodSegments.find(s => s.name === "Jurassic")?.zCenter ?? 0;
+
+      // prime hovered/logo
+      const seg = getSegmentForZ(player.position.z);
+      setHoveredSegment(seg);
+      updateShirtLogo(seg?.name);
+
+      isPlaying = true;
+      newPrompt();
+    }
+
+    function backToStart() {
+      isPlaying = false;
+      totalQuestions = 0;
+      answered = 0;
+      streak = 0;
+      setScore(0);
+
+      promptEl.classList.add("hidden");
+      scoreEl.classList.add("hidden");
+      sidePanel.classList.add("hidden");
+      endOverlay.classList.add("hidden");
+      startOverlay.classList.remove("hidden");
+    }
+
+    btnNovice.addEventListener("click", () => startGame(10));
+    btnMastery.addEventListener("click", () => startGame(20));
+
+    btnTryAgain.addEventListener("click", () => {
+      if (totalQuestions) startGame(totalQuestions);
+    });
+
+    btnBackToStart.addEventListener("click", () => backToStart());
+
+    // -----------------------
+    // Certificate PDF
+    // -----------------------
+    function generateCertificatePDF() {
+      const name = (studentNameInput.value || "").trim() || "Student";
+      const tier = getTierForScore(score, totalQuestions);
+      const pathLabel = totalQuestions === 20 ? "Mastery Path (20 questions)" : "Novice Path (10 questions)";
+      const grade = tier.grade;
+
+      const jspdf = window.jspdf;
+      if (!jspdf || !jspdf.jsPDF) {
+        alert("jsPDF did not load. Check that the jsPDF CDN script is reachable.");
+        return;
+      }
+
+      const { jsPDF } = jspdf;
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
+
+      const W = doc.internal.pageSize.getWidth();
+      const H = doc.internal.pageSize.getHeight();
+
+      // Background + border
+      doc.setFillColor(15, 19, 26);
+      doc.rect(0, 0, W, H, "F");
+
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(2);
+      doc.rect(30, 30, W - 60, H - 60);
+
+      doc.setLineWidth(1);
+      doc.setDrawColor(255, 255, 255);
+      doc.rect(44, 44, W - 88, H - 88);
+
+      // Title
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(34);
+      doc.text("Certificate of Achievement", W / 2, 110, { align: "center" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(14);
+      doc.setTextColor(200, 205, 215);
+      doc.text("Phanerozoic Mastery Path Challenge", W / 2, 140, { align: "center" });
+
+      // Name
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(28);
+      doc.setTextColor(255, 255, 255);
+      doc.text(name, W / 2, 210, { align: "center" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(14);
+      doc.setTextColor(200, 205, 215);
+      doc.text("has earned the title:", W / 2, 240, { align: "center" });
+
+      // Tier title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.setTextColor(255, 255, 255);
+      doc.text(tier.title, W / 2, 280, { align: "center" });
+
+      // Details
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(14);
+      doc.setTextColor(220, 225, 235);
+
+      const dateStr = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+
+      const lines = [
+        `Path: ${pathLabel}`,
+        `Final Score: ${formatInt(score)}`,
+        `Gradebook Score: ${grade} / 10`,
+        `Date: ${dateStr}`
+      ];
+
+      const y0 = 340;
+      const lh = 22;
+      for (let i = 0; i < lines.length; i++) {
+        doc.text(lines[i], W / 2, y0 + i * lh, { align: "center" });
+      }
+
+      // Signature line
+      doc.setDrawColor(200, 205, 215);
+      doc.line(W/2 - 170, H - 140, W/2 + 170, H - 140);
+      doc.setTextColor(200, 205, 215);
+      doc.setFontSize(12);
+      doc.text("Instructor / Course", W / 2, H - 120, { align: "center" });
+
+      const fileName = `${name.replace(/[^\w\-]+/g, "_")}_Phanerozoic_Certificate.pdf`;
+
+      // Open in a new tab for printing (best effort) + download
+      const blob = doc.output("blob");
+      const url = URL.createObjectURL(blob);
+      try { window.open(url, "_blank", "noopener"); } catch {}
+      doc.save(fileName);
+
+      // cleanup later
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+
+    btnSettle.addEventListener("click", () => generateCertificatePDF());
+
+    // -----------------------
+    // Input
     // -----------------------
     window.addEventListener("keydown", (e) => {
+      if (!isPlaying) return;
+
       if (e.code === "ArrowUp" || e.code === "ArrowDown" || e.code === "Space") e.preventDefault();
 
       if (e.code === "ArrowUp") keys.ArrowUp = true;
@@ -571,7 +1036,7 @@
         sitLock = true;
         setSitting(true);
         evaluateSit();
-        window.setTimeout(() => { setSitting(false); sitLock = false; }, 350);
+        window.setTimeout(() => { setSitting(false); sitLock = false; }, 320);
       }
     }, { passive: false });
 
@@ -581,20 +1046,20 @@
     });
 
     // -----------------------
-    // Animation loop
+    // Animate
     // -----------------------
     const clock = new THREE.Clock();
     const speed = 140;
+    const PLAYER_Z_MARGIN = 3.5;
 
     function animate() {
       requestAnimationFrame(animate);
       const dt = Math.min(0.033, clock.getDelta());
 
-      if (!sitLock) {
+      if (isPlaying && !sitLock) {
         let dz = 0;
-        if (keys.ArrowUp) dz += speed * dt;
-        if (keys.ArrowDown) dz -= speed * dt;
-        const PLAYER_Z_MARGIN = 3.5; // half-footprint-ish
+        if (keys.ArrowUp) dz += speed * dt;   // toward present
+        if (keys.ArrowDown) dz -= speed * dt; // toward older
 
         player.position.z = THREE.MathUtils.clamp(
           player.position.z + dz,
@@ -603,20 +1068,17 @@
         );
       }
 
-      // Glow the segment under the player
-      setHoveredSegment(getSegmentForZ(player.position.z));
       const seg = getSegmentForZ(player.position.z);
+      setHoveredSegment(seg);
       updateShirtLogo(seg?.name);
-      // Track camera
+
       updateCamera(dt);
+      faceShirtToCameraUpright();
 
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
     }
 
-    // -----------------------
-    // Resize
-    // -----------------------
     function onResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -625,9 +1087,9 @@
     }
     window.addEventListener("resize", onResize);
 
-    // Start
-    setScore(0);
-    newPrompt();
+    // Boot: show menu; render background scene immediately
+    camera.position.set(170, 110, 210);
+    camera.lookAt(0, 0, player.position.z);
     animate();
   </script>
 </body>
