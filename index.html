@@ -181,6 +181,34 @@
 
     let currentLogoName = null;
 
+    // Make tiny periods playable (Quaternary / Neogene etc.)
+    const MIN_SEG_LEN = 26; // world units; adjust 18–40 to taste
+    
+    function buildZLayout(periods, slabLen) {
+      const durations = periods.map(p => p.start - p.end);
+      const totalDur = durations.reduce((a, b) => a + b, 0);
+    
+      const n = periods.length;
+      const minTotal = MIN_SEG_LEN * n;
+      const remainder = Math.max(0, slabLen - minTotal);
+    
+      // Length per period: MIN_SEG_LEN + proportional remainder
+      const segLens = durations.map(d => MIN_SEG_LEN + (totalDur ? remainder * (d / totalDur) : 0));
+    
+      // Ensure exact fit to slab (avoid rounding drift): force last segment to end at +slabLen/2
+      let z = -slabLen / 2;
+      const out = [];
+      for (let i = 0; i < periods.length; i++) {
+        const len = (i === periods.length - 1) ? (slabLen / 2 - z) : segLens[i];
+        const zMin = z;
+        const zMax = z + len;
+        out.push({ zMin, zMax, zCenter: (zMin + zMax) / 2, segLen: Math.max(1, zMax - zMin) });
+        z = zMax;
+      }
+      return out;
+    }
+
+
     function updateShirtLogo(periodName) {
       if (!periodName || periodName === currentLogoName) return;
       const t = loadLogo(periodName);
@@ -241,17 +269,13 @@
     const segH = 1.2;
 
     // Store meshes/materials so we can "glow" the one the player is over
+    const layout = buildZLayout(PERIODS, SLAB_LEN);
+    
     const periodSegments = [];
-
-    for (const p of PERIODS) {
-      const zA = maToZ(p.start);
-      const zB = maToZ(p.end);
-      const zMin = Math.min(zA, zB);
-      const zMax = Math.max(zA, zB);
-      const segLen = Math.max(1, zMax - zMin);
-      const zCenter = (zMin + zMax) / 2;
-
-      // emissive-based glow (fast, no postprocessing needed)
+    for (let i = 0; i < PERIODS.length; i++) {
+      const p = PERIODS[i];
+      const L = layout[i];
+    
       const segMat = new THREE.MeshStandardMaterial({
         color: p.color,
         roughness: 0.65,
@@ -259,30 +283,42 @@
         emissive: new THREE.Color(p.color),
         emissiveIntensity: 0.0
       });
-
+    
       const seg = new THREE.Mesh(
-        new THREE.BoxGeometry(SLAB_W + 0.6, segH, segLen),
+        new THREE.BoxGeometry(SLAB_W + 0.6, segH, L.segLen),
         segMat
       );
-      seg.position.set(0, topY, zCenter);
+      seg.position.set(0, topY, L.zCenter);
       slabGroup.add(seg);
-
-      const divider = new THREE.Mesh(
-        new THREE.BoxGeometry(SLAB_W + 1.2, segH + 0.01, 0.8),
-        new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 1.0, metalness: 0.0 })
-      );
-      divider.position.set(0, topY + 0.01, zMax);
-      slabGroup.add(divider);
-
+    
+      // Divider at boundary (skip the very last boundary)
+      if (i !== PERIODS.length - 1) {
+        const divider = new THREE.Mesh(
+          new THREE.BoxGeometry(SLAB_W + 1.2, segH + 0.01, 0.8),
+          new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 1.0, metalness: 0.0 })
+        );
+        divider.position.set(0, topY + 0.01, L.zMax);
+        slabGroup.add(divider);
+      }
+    
+      // Label
       const labelDiv = document.createElement("div");
       labelDiv.className = "label";
       labelDiv.textContent = p.name;
       const labelObj = new CSS2DObject(labelDiv);
-      labelObj.position.set(0, topY + 6.0, zCenter);
+      labelObj.position.set(0, topY + 6.0, L.zCenter);
       slabGroup.add(labelObj);
-
-      periodSegments.push({ ...p, zMin, zMax, zCenter, mesh: seg, mat: segMat });
+    
+      periodSegments.push({
+        ...p,
+        zMin: L.zMin,
+        zMax: L.zMax,
+        zCenter: L.zCenter,
+        mesh: seg,
+        mat: segMat
+      });
     }
+
 
     function makeEndLabel(text, z) {
       const div = document.createElement("div");
@@ -340,8 +376,13 @@
     player.add(body, head, feet);
 
     const playerYStanding = topY + segH / 2 + 9.0;
-    player.position.set(0, playerYStanding, maToZ(250));
-    player.rotation.y = Math.PI;
+    function centerZForPeriod(name) {
+      return periodSegments.find(s => s.name === name)?.zCenter ?? 0;
+    }
+    
+    player.position.set(0, playerYStanding, centerZForPeriod("Jurassic"));
+
+    player.rotation.y = Math.PI / 2;
 
     // -----------------------
     // Camera follow (track)
@@ -491,7 +532,13 @@
         let dz = 0;
         if (keys.ArrowUp) dz += speed * dt;
         if (keys.ArrowDown) dz -= speed * dt;
-        player.position.z = THREE.MathUtils.clamp(player.position.z + dz, -SLAB_LEN / 2 + 6, SLAB_LEN / 2 - 6);
+        const PLAYER_Z_MARGIN = 3.5; // half-footprint-ish
+
+        player.position.z = THREE.MathUtils.clamp(
+          player.position.z + dz,
+          -SLAB_LEN / 2 + PLAYER_Z_MARGIN,
+           SLAB_LEN / 2 - PLAYER_Z_MARGIN
+        );
       }
 
       // Glow the segment under the player
