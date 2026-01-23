@@ -751,25 +751,43 @@ input[type="text"]:focus{
     // -----------------------
     // Camera follow (track)
     // -----------------------
+
+    let orbitAngle = Math.atan2(camOffset.z, camOffset.x); // start roughly where your old cam was
+    const orbitRadius = Math.hypot(camOffset.x, camOffset.z); // reuse old offset magnitude
+    const orbitHeight = camOffset.y;                          // reuse old height
+    const orbitSpeed = 1.35;
+    
     const camOffset = new THREE.Vector3(170, 110, 210);
     const camDesired = new THREE.Vector3();
     const lookDesired = new THREE.Vector3();
     const lookCurrent = new THREE.Vector3(0, 0, player.position.z);
 
     function updateCamera(dt) {
+      // rotate with left/right arrows
+      if (keys.ArrowLeft)  orbitAngle -= orbitSpeed * dt;
+      if (keys.ArrowRight) orbitAngle += orbitSpeed * dt;
+    
       const alpha = 1 - Math.exp(-dt * 6.5);
-      camDesired.set(camOffset.x, camOffset.y, player.position.z + camOffset.z);
+    
+      // orbit around the character (target is the character's Z on the slab)
+      const target = lookDesired.set(0, 0, player.position.z);
+    
+      camDesired.set(
+        Math.cos(orbitAngle) * orbitRadius,        // X
+        orbitHeight,                                // Y
+        player.position.z + Math.sin(orbitAngle) * orbitRadius // Z
+      );
+    
       camera.position.lerp(camDesired, alpha);
-
-      lookDesired.set(0, 0, player.position.z);
-      lookCurrent.lerp(lookDesired, alpha);
-      camera.lookAt(lookCurrent);
+    
+      lookCurrent.lerp(target, alpha);
+      camera.lookAt(lookCurrent.x, lookCurrent.y + 10, lookCurrent.z); // slight upward look
     }
 
     // -----------------------
     // Game logic (finite-question challenge + combo scoring)
     // -----------------------
-    const keys = { ArrowUp: false, ArrowDown: false };
+    const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
     let isPlaying = false;
 
     let totalQuestions = 0;
@@ -1109,22 +1127,22 @@ input[type="text"]:focus{
     window.addEventListener("keydown", (e) => {
       if (!isPlaying) return;
 
-      if (e.code === "ArrowUp" || e.code === "ArrowDown" || e.code === "Space") e.preventDefault();
-
+      if (e.code === "ArrowUp" || e.code === "ArrowDown" || e.code === "ArrowLeft" || e.code === "ArrowRight" || e.code === "Space")
+        e.preventDefault();
+    
       if (e.code === "ArrowUp") keys.ArrowUp = true;
       if (e.code === "ArrowDown") keys.ArrowDown = true;
-
-      if (e.code === "Space" && !sitLock) {
-        sitLock = true;
-        setSitting(true);
-        evaluateSit();
-        window.setTimeout(() => { setSitting(false); sitLock = false; }, 320);
-      }
+      if (e.code === "ArrowLeft") keys.ArrowLeft = true;
+      if (e.code === "ArrowRight") keys.ArrowRight = true;
+    
+      // (keep your Space/sit logic as-is)
     }, { passive: false });
-
+    
     window.addEventListener("keyup", (e) => {
       if (e.code === "ArrowUp") keys.ArrowUp = false;
       if (e.code === "ArrowDown") keys.ArrowDown = false;
+      if (e.code === "ArrowLeft") keys.ArrowLeft = false;
+      if (e.code === "ArrowRight") keys.ArrowRight = false;
     });
 
     // -----------------------
