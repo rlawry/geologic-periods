@@ -510,18 +510,6 @@ input[type="text"]:focus{
       return Math.trunc(n).toLocaleString("en-US");
     }
 
-    function getTiersForN(n) {
-      return n === 20 ? TIERS_20 : TIERS_10;
-    }
-
-    function getTierForScore(score, n) {
-      const tiers = getTiersForN(n);
-      const s = Math.max(0, Math.trunc(score));
-      let best = tiers[0];
-      for (const t of tiers) if (s >= t.minScore) best = t;
-      return best;
-    }
-
     // -----------------------
     // DOM
     // -----------------------
