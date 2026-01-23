@@ -487,7 +487,7 @@ input[type="text"]:focus{
     const HOP_DURATION = 0.28;     // seconds (constant for every hop)
     const HOP_HEIGHT   = 7.0;      // world units (constant arc height)
     
-    const HOP_MIN_DIST = 1.0;      // tap can be near-in-place
+    const HOP_MIN_DIST = 10.0;      // tap can be near-in-place
     const HOP_MAX_DIST = 75.0;     // max hop distance
     const RAMP_TIME    = 1.25;     // seconds to reach max hop distance while holding
     
@@ -1205,33 +1205,37 @@ input[type="text"]:focus{
       if (!isPlaying) return;
     
       if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
+    
       if (e.code === "ArrowLeft")  keys.ArrowLeft = true;
       if (e.code === "ArrowRight") keys.ArrowRight = true;
+    
+      // ArrowUp = toward present (+1)
       if (e.code === "ArrowUp") {
         keys.ArrowUp = true;
     
         if (!moveHold.active || moveHold.dir !== +1) {
           moveHold.active = true;
-          moveHold.dir = -1;
-          moveHold.t0 = performance.now() / 1000; // (re)start ramp for this direction
-        }
-        // IMMEDIATE hop start
-        if (!hop.active && !sitLock) startHop(-1);
-      }
-    
-      if (e.code === "ArrowDown") {
-        keys.ArrowDown = true;
-      
-        if (!moveHold.active || moveHold.dir !== -1) {
-          moveHold.active = true;
           moveHold.dir = +1;
           moveHold.t0 = performance.now() / 1000;
         }
-        // IMMEDIATE hop start
+    
         if (!hop.active && !sitLock) startHop(+1);
       }
     
-      // keep your Space sit logic as-is
+      // ArrowDown = toward older (-1)
+      if (e.code === "ArrowDown") {
+        keys.ArrowDown = true;
+    
+        if (!moveHold.active || moveHold.dir !== -1) {
+          moveHold.active = true;
+          moveHold.dir = -1;
+          moveHold.t0 = performance.now() / 1000;
+        }
+    
+        if (!hop.active && !sitLock) startHop(-1);
+      }
+    
+      // Space sit logic stays as-is below...
     }, { passive: false });
     
     window.addEventListener("keyup", (e) => {
