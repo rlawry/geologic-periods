@@ -482,7 +482,40 @@ input[type="text"]:focus{
       { title: "Neogene Elite",           minScore: 262143,   grade: 9 },   // 2^18 - 1
       { title: "Quaternary Grandmaster",  minScore: 1048575,  grade: 10 }   // 2^20 - 1
     ];
+
+    // Discrete hop (bunny/toad) movement
+    const HOP_STEP = 22;       // world-units per hop (tune)
+    const HOP_HEIGHT = 6.0;    // hop height (tune)
+    const HOP_DURATION = 0.28; // seconds per hop (tune)
     
+    const hop = {
+      active: false,
+      t: 0,
+      dir: 0,
+      z0: 0,
+      z1: 0
+    };
+    
+    function easeInOutCubic(u) {
+      return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+    }
+    
+    function startHop(dir) {
+      if (hop.active || sitLock) return;
+    
+      hop.active = true;
+      hop.t = 0;
+      hop.dir = dir;
+    
+      hop.z0 = player.position.z;
+      const target = hop.z0 + dir * HOP_STEP;
+    
+      hop.z1 = THREE.MathUtils.clamp(
+        target,
+        -SLAB_LEN / 2 + PLAYER_Z_MARGIN,
+         SLAB_LEN / 2 - PLAYER_Z_MARGIN
+      );
+    }    
 
     function getTiersForN(_n) { return TIERS; }
     
@@ -911,6 +944,8 @@ input[type="text"]:focus{
     }
 
     function setSitting(isSitting) {
+      hop.active = false;
+      body.scale.set(1, 1, 1);
       if (isSitting) {
         player.position.y = playerYStanding - 6.5;
         body.scale.set(1, 0.75, 1);
@@ -1157,15 +1192,47 @@ input[type="text"]:focus{
       const dt = Math.min(0.033, clock.getDelta());
 
       if (isPlaying && !sitLock) {
-        let dz = 0;
-        if (keys.ArrowUp) dz += speed * dt;   // toward present
-        if (keys.ArrowDown) dz -= speed * dt; // toward older
-
-        player.position.z = THREE.MathUtils.clamp(
-          player.position.z + dz,
-          -SLAB_LEN / 2 + PLAYER_Z_MARGIN,
-           SLAB_LEN / 2 - PLAYER_Z_MARGIN
-        );
+        // If not currently hopping, decide whether to begin a hop
+        if (!hop.active) {
+          let dir = 0;
+          if (keys.ArrowUp) dir = +1;       // toward present
+          else if (keys.ArrowDown) dir = -1; // toward older
+      
+          if (dir !== 0) startHop(dir);
+        }
+      
+        // If hopping, advance the hop (full arc, always completes)
+        if (hop.active) {
+          hop.t += dt;
+          const u = Math.min(1, hop.t / HOP_DURATION); // 0..1
+          const s = easeInOutCubic(u);
+      
+          // Horizontal travel happens across the hop, regardless of hop distance
+          player.position.z = THREE.MathUtils.lerp(hop.z0, hop.z1, s);
+      
+          // Vertical arc: always a full hop
+          player.position.y = playerYStanding + Math.sin(Math.PI * u) * HOP_HEIGHT;
+      
+          // Optional: a tiny squash/stretch (feels more “toad”)
+          const stretch = 1 + 0.12 * Math.sin(Math.PI * u);
+          body.scale.set(1, stretch, 1);
+      
+          if (u >= 1) {
+            // Land
+            hop.active = false;
+            player.position.z = hop.z1;
+            player.position.y = playerYStanding;
+            body.scale.set(1, 1, 1);
+      
+            // Auto-chain hops if key still held (next hop starts only after landing)
+            if (keys.ArrowUp) startHop(+1);
+            else if (keys.ArrowDown) startHop(-1);
+          }
+        } else {
+          // Not hopping: ensure standing height
+          player.position.y = playerYStanding;
+          body.scale.set(1, 1, 1);
+        }
       }
 
       const seg = getSegmentForZ(player.position.z);
