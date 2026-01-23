@@ -1205,29 +1205,30 @@ input[type="text"]:focus{
       if (!isPlaying) return;
     
       if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
-    
+      if (e.code === "ArrowLeft")  keys.ArrowLeft = true;
+      if (e.code === "ArrowRight") keys.ArrowRight = true;
       if (e.code === "ArrowUp") {
         keys.ArrowUp = true;
     
         if (!moveHold.active || moveHold.dir !== +1) {
           moveHold.active = true;
-          moveHold.dir = +1;
+          moveHold.dir = -1;
           moveHold.t0 = performance.now() / 1000; // (re)start ramp for this direction
         }
         // IMMEDIATE hop start
-        if (!hop.active && !sitLock) startHop(+1);
+        if (!hop.active && !sitLock) startHop(-1);
       }
     
       if (e.code === "ArrowDown") {
         keys.ArrowDown = true;
-    
+      
         if (!moveHold.active || moveHold.dir !== -1) {
           moveHold.active = true;
-          moveHold.dir = -1;
+          moveHold.dir = +1;
           moveHold.t0 = performance.now() / 1000;
         }
         // IMMEDIATE hop start
-        if (!hop.active && !sitLock) startHop(-1);
+        if (!hop.active && !sitLock) startHop(+1);
       }
     
       // keep your Space sit logic as-is
@@ -1236,7 +1237,8 @@ input[type="text"]:focus{
     window.addEventListener("keyup", (e) => {
       if (e.code === "ArrowUp") keys.ArrowUp = false;
       if (e.code === "ArrowDown") keys.ArrowDown = false;
-    
+      if (e.code === "ArrowLeft")  keys.ArrowLeft = false;
+      if (e.code === "ArrowRight") keys.ArrowRight = false;
       // If they stop holding movement keys, stop ramp + freeze horizontal mid-hop
       if (e.code === "ArrowUp" || e.code === "ArrowDown") {
         const stillHolding = keys.ArrowUp || keys.ArrowDown;
