@@ -311,23 +311,26 @@
     const feet = new THREE.Mesh(new THREE.BoxGeometry(6.8, 1.6, 6.8), accentMat);
     feet.position.y = 3.2;
 
-    // Shirt material: white shirt + logo texture (map) swapped by period
-    const shirtMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.9,
-      metalness: 0.0,
-      transparent: true
+    // Shirt logo should be readable regardless of lighting
+    const shirtMat = new THREE.MeshBasicMaterial({
+      transparent: true,
+      alphaTest: 0.05,                 // helps PNG transparency edges
+      side: THREE.DoubleSide           // critical if it ever flips
     });
     
-    // A front-facing plane on the torso
     const shirt = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), shirtMat);
-    // PlaneGeometry faces +Z by default; put it slightly in front of torso
-    shirt.position.set(0, 10.8, 4.9);
-    shirt.rotation.y = 0;
-    shirt.renderOrder = 2;
     
-    // Attach to the body so it follows the character
+    // Put it OUTSIDE the torso (increase Z until it’s clearly in front)
+    shirt.position.set(0, 10.8, 6.6);
+    
+    // Because player/body is rotated PI, rotate the shirt so its front faces the camera
+    shirt.rotation.y = Math.PI;
+    
+    // Attach to body so it moves with the character
     body.add(shirt);
+    
+    // Optional: ensure it draws on top if you get occasional z-fighting
+    shirt.renderOrder = 10;
     
     // Set an initial logo (optional)
     shirtMat.map = loadLogo("Triassic");
