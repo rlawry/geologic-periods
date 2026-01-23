@@ -554,7 +554,22 @@ input[type="text"]:focus{
       player.position.z = zNow;
     }
 
-
+  function getOrCreateBrowserId() {
+      const key = "phanerozoic_browser_id_v1";
+      let id = localStorage.getItem(key);
+      if (!id) {
+        // Prefer UUID, fallback to random hex
+        if (crypto?.randomUUID) {
+          id = crypto.randomUUID();
+        } else {
+          const bytes = new Uint8Array(16);
+          crypto.getRandomValues(bytes);
+          id = [...bytes].map(b => b.toString(16).padStart(2, "0")).join("");
+        }
+        localStorage.setItem(key, id);
+      }
+      return id;
+    }
 
     function getTiersForN(_n) { return TIERS; }
     
@@ -1104,6 +1119,9 @@ input[type="text"]:focus{
       const tier = getTierForScore(score, totalQuestions);
       const pathLabel = totalQuestions === 20 ? "Mastery Path (20 questions)" : "Novice Path (10 questions)";
       const grade = gradebookScoreFromTier(tier.grade);
+      const browserId = getOrCreateBrowserId();
+      const attemptId = crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()); // unique per completion
+
 
       const jspdf = window.jspdf;
       if (!jspdf || !jspdf.jsPDF) {
@@ -1168,7 +1186,8 @@ input[type="text"]:focus{
         `Path: ${pathLabel}`,
         `Final Score: ${formatInt(score)}`,
         `Gradebook Score: ${grade} / 10`,
-        `Date: ${dateStr}`
+        `Date: ${dateStr}`,
+        `Hacker Snitch: ${browserId}`,
       ];
 
       const y0 = 340;
