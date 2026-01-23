@@ -452,7 +452,7 @@ input[type="text"]:focus{
 
     // Place your downloaded period PNGs here:
     // assets/logos/Cambrian.png ... assets/logos/Quaternary.png
-    const LOGO_PATHS = Object.fromEntries(PERIODS.map(p => [p.name, `assets/logos/${p.name}.png`]));
+    const LOGO_PATHS = Object.fromEntries(PERIODS.map(p => [p.name, `${p.name}.png`]));
     const texLoader = new THREE.TextureLoader();
     const logoTexCache = new Map();
 
