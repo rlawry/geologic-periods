@@ -4,6 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Phanerozoic Sit-in-the-Period (Three.js)</title>
+
+  <!-- For consistent importmap support on GitHub Pages across browsers -->
+  <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f14; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     #app { position: fixed; inset: 0; }
@@ -81,7 +93,7 @@
       font-size: 12px;
       user-select: none;
       pointer-events: none;
-      max-width: 320px;
+      max-width: 360px;
       line-height: 1.25;
     }
   </style>
@@ -99,43 +111,32 @@
   <div id="score">Score: 0</div>
   <div id="hint">Older end: Cambrian (541 Ma) ← &nbsp;&nbsp;→ Present (0 Ma): Quaternary</div>
 
-  <!-- Optional but recommended for broader browser support (older Safari/Chromebooks) -->
-<script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-
-
   <script type="module">
-import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+    import * as THREE from "three";
+    import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 
+    // -----------------------
+    // Phanerozoic periods (Ma)
+    // -----------------------
     const PERIODS = [
-      { name: "Cambrian",      start: 541.0,    end: 485.4,  color: 0x2ecc71 },
-      { name: "Ordovician",    start: 485.4,    end: 443.8,  color: 0x27ae60 },
-      { name: "Silurian",      start: 443.8,    end: 419.2,  color: 0x16a085 },
-      { name: "Devonian",      start: 419.2,    end: 358.9,  color: 0x1abc9c },
-      { name: "Carboniferous", start: 358.9,    end: 298.9,  color: 0x3498db },
-      { name: "Permian",       start: 298.9,    end: 251.902,color: 0x9b59b6 },
-      { name: "Triassic",      start: 251.902,  end: 201.36, color: 0xe67e22 },
-      { name: "Jurassic",      start: 201.36,   end: 145.0,  color: 0xf1c40f },
-      { name: "Cretaceous",    start: 145.0,    end: 66.0,   color: 0xf39c12 },
-      { name: "Paleogene",     start: 66.0,     end: 23.03,  color: 0xe74c3c },
-      { name: "Neogene",       start: 23.03,    end: 2.58,   color: 0xc0392b },
-      { name: "Quaternary",    start: 2.58,     end: 0.0,    color: 0xecf0f1 }
+      { name: "Cambrian",      start: 541.0,    end: 485.4,   color: 0x2ecc71 },
+      { name: "Ordovician",    start: 485.4,    end: 443.8,   color: 0x27ae60 },
+      { name: "Silurian",      start: 443.8,    end: 419.2,   color: 0x16a085 },
+      { name: "Devonian",      start: 419.2,    end: 358.9,   color: 0x1abc9c },
+      { name: "Carboniferous", start: 358.9,    end: 298.9,   color: 0x3498db },
+      { name: "Permian",       start: 298.9,    end: 251.902, color: 0x9b59b6 },
+      { name: "Triassic",      start: 251.902,  end: 201.36,  color: 0xe67e22 },
+      { name: "Jurassic",      start: 201.36,   end: 145.0,   color: 0xf1c40f },
+      { name: "Cretaceous",    start: 145.0,    end: 66.0,    color: 0xf39c12 },
+      { name: "Paleogene",     start: 66.0,     end: 23.03,   color: 0xe74c3c },
+      { name: "Neogene",       start: 23.03,    end: 2.58,    color: 0xc0392b },
+      { name: "Quaternary",    start: 2.58,     end: 0.0,     color: 0xecf0f1 }
     ];
 
     const TOTAL_MA = 541.0;
-    const SLAB_LEN = 780;
-    const SLAB_W = 120;
-    const SLAB_H = 18;
+    const SLAB_LEN = 780;      // along Z
+    const SLAB_W = 120;        // along X
+    const SLAB_H = 18;         // along Y
 
     function maToZ(ma) {
       const t = (TOTAL_MA - ma) / TOTAL_MA;
@@ -147,11 +148,13 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
     const scoreEl = document.getElementById("score");
     const flashEl = document.getElementById("flash");
 
+    // -----------------------
+    // Scene setup
+    // -----------------------
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x0b0f14, 250, 800);
+    scene.fog = new THREE.Fog(0x0b0f14, 260, 900);
 
-    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(120, 85, 170);
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 2200);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -166,27 +169,22 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
     labelRenderer.domElement.style.pointerEvents = "none";
     app.appendChild(labelRenderer.domElement);
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.enablePan = false;
-    controls.minDistance = 90;
-    controls.maxDistance = 520;
-    controls.maxPolarAngle = Math.PI * 0.48;
-
     scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.85);
-    dir.position.set(140, 180, 60);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    dir.position.set(150, 200, 80);
     scene.add(dir);
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(2000, 2000),
+      new THREE.PlaneGeometry(2200, 2200),
       new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 1.0, metalness: 0.0 })
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -40;
     scene.add(ground);
 
+    // -----------------------
+    // Slab + segments
+    // -----------------------
     const slabGroup = new THREE.Group();
     scene.add(slabGroup);
 
@@ -199,7 +197,9 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
     const topY = SLAB_H / 2 + 0.6;
     const segH = 1.2;
 
+    // Store meshes/materials so we can "glow" the one the player is over
     const periodSegments = [];
+
     for (const p of PERIODS) {
       const zA = maToZ(p.start);
       const zB = maToZ(p.end);
@@ -208,9 +208,18 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
       const segLen = Math.max(1, zMax - zMin);
       const zCenter = (zMin + zMax) / 2;
 
+      // emissive-based glow (fast, no postprocessing needed)
+      const segMat = new THREE.MeshStandardMaterial({
+        color: p.color,
+        roughness: 0.65,
+        metalness: 0.05,
+        emissive: new THREE.Color(p.color),
+        emissiveIntensity: 0.0
+      });
+
       const seg = new THREE.Mesh(
         new THREE.BoxGeometry(SLAB_W + 0.6, segH, segLen),
-        new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.65, metalness: 0.05 })
+        segMat
       );
       seg.position.set(0, topY, zCenter);
       slabGroup.add(seg);
@@ -229,7 +238,7 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
       labelObj.position.set(0, topY + 6.0, zCenter);
       slabGroup.add(labelObj);
 
-      periodSegments.push({ ...p, zMin, zMax, zCenter });
+      periodSegments.push({ ...p, zMin, zMax, zCenter, mesh: seg, mat: segMat });
     }
 
     function makeEndLabel(text, z) {
@@ -243,6 +252,9 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
     makeEndLabel("541 Ma (Cambrian start)", -SLAB_LEN / 2);
     makeEndLabel("0 Ma (Present)", SLAB_LEN / 2);
 
+    // -----------------------
+    // Person (player)
+    // -----------------------
     const player = new THREE.Group();
     scene.add(player);
 
@@ -262,12 +274,38 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
     player.position.set(0, playerYStanding, maToZ(250));
     player.rotation.y = Math.PI;
 
+    // -----------------------
+    // Camera follow (track)
+    // -----------------------
+    // Camera stays on a "track" with fixed X/Y, Z follows player with smoothing.
+    const camOffset = new THREE.Vector3(170, 110, 210); // x, y, z relative (z is + in front of player)
+    const camDesired = new THREE.Vector3();
+    const lookDesired = new THREE.Vector3();
+    const lookCurrent = new THREE.Vector3(0, 0, player.position.z);
+
+    function updateCamera(dt) {
+      const alpha = 1 - Math.exp(-dt * 6.5); // smoothing
+      camDesired.set(camOffset.x, camOffset.y, player.position.z + camOffset.z);
+      camera.position.lerp(camDesired, alpha);
+
+      // look at the slab center near the player
+      lookDesired.set(0, 0, player.position.z);
+      lookCurrent.lerp(lookDesired, alpha);
+      camera.lookAt(lookCurrent);
+    }
+
+    // -----------------------
+    // Game state
+    // -----------------------
     const keys = { ArrowUp: false, ArrowDown: false };
     let score = 0;
 
     let currentPromptMa = null;
     let currentPromptPeriod = null;
     let sitLock = false;
+
+    // Hover-glow state (segment under player)
+    let hoveredSeg = null;
 
     function getPeriodForMa(ma) {
       for (const p of PERIODS) {
@@ -276,13 +314,33 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
       return null;
     }
 
-    function getPeriodForZ(z) {
+    function getSegmentForZ(z) {
       for (const seg of periodSegments) {
         if (z >= seg.zMin && z < seg.zMax) return seg;
       }
       if (z >= periodSegments[periodSegments.length - 1].zMin) return periodSegments[periodSegments.length - 1];
       if (z < periodSegments[0].zMax) return periodSegments[0];
       return null;
+    }
+
+    function setHoveredSegment(seg) {
+      if (hoveredSeg === seg) return;
+
+      // clear previous
+      if (hoveredSeg) {
+        hoveredSeg.mat.emissiveIntensity = 0.0;
+        hoveredSeg.mesh.scale.y = 1.0;
+        hoveredSeg.mesh.position.y = topY;
+      }
+
+      hoveredSeg = seg;
+
+      // set new
+      if (hoveredSeg) {
+        hoveredSeg.mat.emissiveIntensity = 0.95;    // "glow"
+        hoveredSeg.mesh.scale.y = 1.35;            // slight lift emphasis
+        hoveredSeg.mesh.position.y = topY + 0.25;
+      }
     }
 
     function newPrompt() {
@@ -320,8 +378,8 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
     }
 
     function evaluateSit() {
-      const playerPeriod = getPeriodForZ(player.position.z);
-      const ok = playerPeriod && currentPromptPeriod && (playerPeriod.name === currentPromptPeriod.name);
+      const playerSeg = getSegmentForZ(player.position.z);
+      const ok = playerSeg && currentPromptPeriod && (playerSeg.name === currentPromptPeriod.name);
 
       if (ok) { flash("green"); setScore(score + 1); }
       else { flash("red"); setScore(score - 1); }
@@ -329,6 +387,9 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
       newPrompt();
     }
 
+    // -----------------------
+    // Input handling
+    // -----------------------
     window.addEventListener("keydown", (e) => {
       if (e.code === "ArrowUp" || e.code === "ArrowDown" || e.code === "Space") e.preventDefault();
 
@@ -348,6 +409,9 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
       if (e.code === "ArrowDown") keys.ArrowDown = false;
     });
 
+    // -----------------------
+    // Animation loop
+    // -----------------------
     const clock = new THREE.Clock();
     const speed = 140;
 
@@ -362,13 +426,19 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
         player.position.z = THREE.MathUtils.clamp(player.position.z + dz, -SLAB_LEN / 2 + 6, SLAB_LEN / 2 - 6);
       }
 
-      controls.target.set(0, 0, player.position.z);
-      controls.update();
+      // Glow the segment under the player
+      setHoveredSegment(getSegmentForZ(player.position.z));
+
+      // Track camera
+      updateCamera(dt);
 
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
     }
 
+    // -----------------------
+    // Resize
+    // -----------------------
     function onResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -377,6 +447,7 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
     }
     window.addEventListener("resize", onResize);
 
+    // Start
     setScore(0);
     newPrompt();
     animate();
