@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Phanerozoic Mastery Path</title>
+  <title>Phanerozoic Ages</title>
 
   <!-- Import maps on GitHub Pages (works across browsers) -->
   <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
@@ -268,6 +268,7 @@
       <div>Streak</div><div id="uiStreak">0</div>
       <div>Next correct</div><div id="uiNext">+1</div>
       <div>Max possible</div><div id="uiMax">—</div>
+      <div>Grade cap</div><div id="uiCap">—</div>
     </div>
     <table class="tierTable">
       <thead>
@@ -283,7 +284,7 @@
   <!-- Start / Path selection -->
   <div id="startOverlay" class="overlay">
     <div class="panel">
-      <h1>Phanerozoic Mastery Path</h1>
+      <h1>Phanerozoic Ages Mastery</h1>
       <p>
         Walk the Phanerozoic timeline and <b>sit</b> in the correct geologic period for each prompt (in <b>Ma</b>, millions of years ago).
       </p>
@@ -411,22 +412,39 @@
     // Tier definitions (score -> title -> gradebook points out of 10)
     // Thresholds use (2^k - 1) milestones to reflect the combo/exponential nature.
     // -----------------------
-    const TIERS_10 = [
-      { title: "Temporal Tourist",          minScore: 0,    grade: 2 },
-      { title: "Novice Navigator",          minScore: 31,   grade: 4 },   // 2^5-1
-      { title: "Era Adept",                 minScore: 127,  grade: 6 },   // 2^7-1
-      { title: "Period Pro",                minScore: 511,  grade: 8 },   // 2^9-1
-      { title: "Phanerozoic Master",        minScore: 1023, grade: 10 }   // 2^10-1
+    // One identical tier table for both paths (titles + min scores + displayed /10)
+    // Built around the 20-question "perfect combo" landscape.
+    const TIERS = [
+      { title: "Cambrian Tourist",        minScore: 0,        grade: 2 },
+      { title: "Carboniferous Crawler",   minScore: 255,      grade: 4 },   // 2^8 - 1
+      { title: "Permian Prototype",       minScore: 4095,     grade: 6 },   // 2^12 - 1
+      { title: "Cretaceous Creature",     minScore: 65535,    grade: 8 },   // 2^16 - 1
+      { title: "Neogene Elite",           minScore: 262143,   grade: 9 },   // 2^18 - 1
+      { title: "Quaternary Grandmaster",  minScore: 1048575,  grade: 10 }   // 2^20 - 1
     ];
+    
 
-    const TIERS_20 = [
-      { title: "Temporal Tourist",          minScore: 0,        grade: 2 },
-      { title: "Strat Student",             minScore: 255,      grade: 4 },   // 2^8-1
-      { title: "Era Adept",                 minScore: 4095,     grade: 6 },   // 2^12-1
-      { title: "Period Pro",                minScore: 65535,    grade: 8 },   // 2^16-1
-      { title: "Eon Elite",                 minScore: 262143,   grade: 9 },   // 2^18-1
-      { title: "Phanerozoic Grandmaster",   minScore: 1048575,  grade: 10 }   // 2^20-1
-    ];
+    function getTiersForN(_n) { return TIERS; }
+    
+    function getTierForScore(score, _n) {
+      const s = Math.max(0, Math.trunc(score));
+      let best = TIERS[0];
+      for (const t of TIERS) if (s >= t.minScore) best = t;
+      return best;
+    }
+
+    // Novice: recorded gradebook score cannot exceed "passing".
+    // Change this if your passing definition differs.
+    const NOVICE_GRADE_CAP = 7; // out of 10
+    
+    function isNovicePath() {
+      return totalQuestions === 10; // Novice Path = 10 questions
+    }
+    
+    function gradebookScoreFromTier(tierGrade) {
+      return isNovicePath() ? Math.min(tierGrade, NOVICE_GRADE_CAP) : tierGrade;
+    }
+
 
     function formatInt(n) {
       return Math.trunc(n).toLocaleString("en-US");
@@ -780,6 +798,8 @@
       uiStreak.textContent = String(streak);
       uiNext.textContent = `+${formatInt(pointsForStreak(streak + 1))}`;
       uiMax.textContent = formatInt((2 ** totalQuestions) - 1);
+      uiCap.textContent = isNovicePath() ? `Yes (max ${NOVICE_GRADE_CAP}/10)` : "No";
+
     }
 
     function renderTierTable() {
@@ -833,7 +853,7 @@
       const tier = getTierForScore(score, totalQuestions);
       endScore.textContent = formatInt(score);
       endTier.textContent = tier.title;
-      endGrade.textContent = String(tier.grade);
+      endGrade.textContent = String(gradebookScoreFromTier(tier.grade));
 
       endOverlay.classList.remove("hidden");
     }
@@ -927,7 +947,7 @@
       const name = (studentNameInput.value || "").trim() || "Student";
       const tier = getTierForScore(score, totalQuestions);
       const pathLabel = totalQuestions === 20 ? "Mastery Path (20 questions)" : "Novice Path (10 questions)";
-      const grade = tier.grade;
+      const grade = gradebookScoreFromTier(tier.grade);
 
       const jspdf = window.jspdf;
       if (!jspdf || !jspdf.jsPDF) {
