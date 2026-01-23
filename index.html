@@ -8,7 +8,6 @@
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f14; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     #app { position: fixed; inset: 0; }
 
-    /* UI overlays */
     #prompt {
       position: fixed;
       top: 16px;
@@ -61,7 +60,6 @@
     #flash.green { background: #00c853; }
     #flash.red { background: #ff1744; }
 
-    /* Period labels (CSS2DRenderer) */
     .label {
       padding: 4px 8px;
       border-radius: 10px;
@@ -75,7 +73,6 @@
       text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     }
 
-    /* Small corner hint (optional, unobtrusive) */
     #hint {
       position: fixed;
       left: 16px;
@@ -103,14 +100,10 @@
   <div id="hint">Older end: Cambrian (541 Ma) ← &nbsp;&nbsp;→ Present (0 Ma): Quaternary</div>
 
   <script type="module">
-    import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-    import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
-    import { CSS2DRenderer, CSS2DObject } from "https://unpkg.com/three@0.160.0/examples/jsm/renderers/CSS2DRenderer.js";
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+    import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+    import { CSS2DRenderer, CSS2DObject } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/renderers/CSS2DRenderer.js";
 
-    // -----------------------
-    // Phanerozoic periods (Ma)
-    // -----------------------
-    // Ranges: startMa (older) -> endMa (younger)
     const PERIODS = [
       { name: "Cambrian",      start: 541.0,    end: 485.4,  color: 0x2ecc71 },
       { name: "Ordovician",    start: 485.4,    end: 443.8,  color: 0x27ae60 },
@@ -126,9 +119,16 @@
       { name: "Quaternary",    start: 2.58,     end: 0.0,    color: 0xecf0f1 }
     ];
 
-    // -----------------------
-    // Scene setup
-    // -----------------------
+    const TOTAL_MA = 541.0;
+    const SLAB_LEN = 780;
+    const SLAB_W = 120;
+    const SLAB_H = 18;
+
+    function maToZ(ma) {
+      const t = (TOTAL_MA - ma) / TOTAL_MA;
+      return (t * SLAB_LEN) - SLAB_LEN / 2;
+    }
+
     const app = document.getElementById("app");
     const promptMain = document.getElementById("promptMain");
     const scoreEl = document.getElementById("score");
@@ -161,13 +161,11 @@
     controls.maxDistance = 520;
     controls.maxPolarAngle = Math.PI * 0.48;
 
-    // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.55));
     const dir = new THREE.DirectionalLight(0xffffff, 0.85);
     dir.position.set(140, 180, 60);
     scene.add(dir);
 
-    // Subtle ground
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(2000, 2000),
       new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 1.0, metalness: 0.0 })
@@ -176,37 +174,19 @@
     ground.position.y = -40;
     scene.add(ground);
 
-    // -----------------------
-    // Slab geometry + segments
-    // -----------------------
-    const TOTAL_MA = 541.0;
-    const SLAB_LEN = 780;      // world units along Z
-    const SLAB_W = 120;        // world units along X
-    const SLAB_H = 18;         // world units along Y
-
-    function maToZ(ma) {
-      // ma=541 -> -SLAB_LEN/2 (older end)
-      // ma=0   -> +SLAB_LEN/2 (present end)
-      const t = (TOTAL_MA - ma) / TOTAL_MA;
-      return (t * SLAB_LEN) - SLAB_LEN / 2;
-    }
-
     const slabGroup = new THREE.Group();
     scene.add(slabGroup);
 
-    // Base slab (dark)
     const baseSlab = new THREE.Mesh(
       new THREE.BoxGeometry(SLAB_W, SLAB_H, SLAB_LEN),
       new THREE.MeshStandardMaterial({ color: 0x232a33, roughness: 0.85, metalness: 0.05 })
     );
-    baseSlab.position.y = 0;
     slabGroup.add(baseSlab);
 
-    // Colored period "rod" segments (thin layer on top)
     const topY = SLAB_H / 2 + 0.6;
     const segH = 1.2;
 
-    const periodSegments = []; // store zMin/zMax for hit testing & labels
+    const periodSegments = [];
     for (const p of PERIODS) {
       const zA = maToZ(p.start);
       const zB = maToZ(p.end);
@@ -222,7 +202,6 @@
       seg.position.set(0, topY, zCenter);
       slabGroup.add(seg);
 
-      // Boundary lines (thin black dividers)
       const divider = new THREE.Mesh(
         new THREE.BoxGeometry(SLAB_W + 1.2, segH + 0.01, 0.8),
         new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 1.0, metalness: 0.0 })
@@ -230,7 +209,6 @@
       divider.position.set(0, topY + 0.01, zMax);
       slabGroup.add(divider);
 
-      // Label at segment center
       const labelDiv = document.createElement("div");
       labelDiv.className = "label";
       labelDiv.textContent = p.name;
@@ -241,7 +219,6 @@
       periodSegments.push({ ...p, zMin, zMax, zCenter });
     }
 
-    // End markers (older/present)
     function makeEndLabel(text, z) {
       const div = document.createElement("div");
       div.className = "label";
@@ -253,34 +230,25 @@
     makeEndLabel("541 Ma (Cambrian start)", -SLAB_LEN / 2);
     makeEndLabel("0 Ma (Present)", SLAB_LEN / 2);
 
-    // -----------------------
-    // Person (player)
-    // -----------------------
     const player = new THREE.Group();
     scene.add(player);
 
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.05 });
     const accentMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.7, metalness: 0.0 });
 
-    // Simple humanoid: capsule-ish body + head
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(4.2, 10, 8, 16), bodyMat);
     body.position.y = 10;
     const head = new THREE.Mesh(new THREE.SphereGeometry(3.2, 20, 20), bodyMat);
     head.position.y = 18.2;
-
     const feet = new THREE.Mesh(new THREE.BoxGeometry(6.8, 1.6, 6.8), accentMat);
     feet.position.y = 3.2;
 
     player.add(body, head, feet);
 
-    // Position player on slab top
     const playerYStanding = topY + segH / 2 + 9.0;
-    player.position.set(0, playerYStanding, maToZ(250)); // start near Mesozoic-ish
-    player.rotation.y = Math.PI; // face toward older end visually
+    player.position.set(0, playerYStanding, maToZ(250));
+    player.rotation.y = Math.PI;
 
-    // -----------------------
-    // Game state
-    // -----------------------
     const keys = { ArrowUp: false, ArrowDown: false };
     let score = 0;
 
@@ -290,7 +258,6 @@
 
     function getPeriodForMa(ma) {
       for (const p of PERIODS) {
-        // inclusive older boundary, exclusive younger boundary (except end=0)
         if (ma <= p.start && (ma > p.end || (p.end === 0 && ma >= 0))) return p;
       }
       return null;
@@ -300,23 +267,17 @@
       for (const seg of periodSegments) {
         if (z >= seg.zMin && z < seg.zMax) return seg;
       }
-      // edge case at the absolute end
       if (z >= periodSegments[periodSegments.length - 1].zMin) return periodSegments[periodSegments.length - 1];
       if (z < periodSegments[0].zMax) return periodSegments[0];
       return null;
     }
 
     function newPrompt() {
-      // Random Ma in [0.1, 540.9], one decimal place
       const ma = +(0.1 + Math.random() * (540.8)).toFixed(1);
       const period = getPeriodForMa(ma);
       currentPromptMa = ma;
       currentPromptPeriod = period;
-
-      const periodName = period ? period.name : "Unknown";
       promptMain.textContent = `Sit at: ${ma} million years ago (Ma)`;
-      // If you want to show the target period (easy mode), uncomment:
-      // promptMain.textContent = `Sit at: ${ma} Ma — (${periodName})`;
     }
 
     function setScore(v) {
@@ -333,7 +294,6 @@
 
     function setSitting(isSitting) {
       if (isSitting) {
-        // squat/sit approximation
         player.position.y = playerYStanding - 6.5;
         body.scale.set(1, 0.75, 1);
         head.position.y = 16.2;
@@ -350,20 +310,12 @@
       const playerPeriod = getPeriodForZ(player.position.z);
       const ok = playerPeriod && currentPromptPeriod && (playerPeriod.name === currentPromptPeriod.name);
 
-      if (ok) {
-        flash("green");
-        setScore(score + 1);
-      } else {
-        flash("red");
-        setScore(score - 1);
-      }
+      if (ok) { flash("green"); setScore(score + 1); }
+      else { flash("red"); setScore(score - 1); }
 
       newPrompt();
     }
 
-    // -----------------------
-    // Input handling
-    // -----------------------
     window.addEventListener("keydown", (e) => {
       if (e.code === "ArrowUp" || e.code === "ArrowDown" || e.code === "Space") e.preventDefault();
 
@@ -374,11 +326,7 @@
         sitLock = true;
         setSitting(true);
         evaluateSit();
-
-        window.setTimeout(() => {
-          setSitting(false);
-          sitLock = false;
-        }, 350);
+        window.setTimeout(() => { setSitting(false); sitLock = false; }, 350);
       }
     }, { passive: false });
 
@@ -387,17 +335,13 @@
       if (e.code === "ArrowDown") keys.ArrowDown = false;
     });
 
-    // -----------------------
-    // Animation loop
-    // -----------------------
     const clock = new THREE.Clock();
-    const speed = 140; // units per second along slab
+    const speed = 140;
 
     function animate() {
       requestAnimationFrame(animate);
       const dt = Math.min(0.033, clock.getDelta());
 
-      // Movement (↑ toward present/younger; ↓ toward older)
       if (!sitLock) {
         let dz = 0;
         if (keys.ArrowUp) dz += speed * dt;
@@ -405,7 +349,6 @@
         player.position.z = THREE.MathUtils.clamp(player.position.z + dz, -SLAB_LEN / 2 + 6, SLAB_LEN / 2 - 6);
       }
 
-      // Camera follow (keeps player centered while still allowing orbit controls)
       controls.target.set(0, 0, player.position.z);
       controls.update();
 
@@ -413,9 +356,6 @@
       labelRenderer.render(scene, camera);
     }
 
-    // -----------------------
-    // Resize
-    // -----------------------
     function onResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -424,7 +364,6 @@
     }
     window.addEventListener("resize", onResize);
 
-    // Start
     setScore(0);
     newPrompt();
     animate();
