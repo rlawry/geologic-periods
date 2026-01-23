@@ -483,52 +483,77 @@ input[type="text"]:focus{
       { title: "Quaternary Grandmaster",  minScore: 1048575,  grade: 10 }   // 2^20 - 1
     ];
 
-    // Discrete hop (bunny/toad) movement
-    // Charge hop (tap = short, hold = long)
-    const HOP_MIN_DIST = 8;     // shortest hop (world units)
-    const HOP_MAX_DIST = 85;    // longest hop
-    const CHARGE_TAU = 0.22;    // seconds; smaller = reaches max faster
+    // Fixed-time hops; distance ramps up as the key is held
+    const HOP_DURATION = 0.28;     // seconds (constant for every hop)
+    const HOP_HEIGHT   = 7.0;      // world units (constant arc height)
     
-    const HOP_BASE_HEIGHT = 5.5;   // hop height for small hops
-    const HOP_MAX_HEIGHT  = 9.0;   // hop height for full charge
-    const HOP_MIN_DUR = 0.22;      // seconds
-    const HOP_MAX_DUR = 0.36;      // seconds
+    const HOP_MIN_DIST = 0.0;      // tap can be near-in-place
+    const HOP_MAX_DIST = 85.0;     // max hop distance
+    const RAMP_TIME    = 1.25;     // seconds to reach max hop distance while holding
     
-    const hop = { active:false, t:0, dur:0.28, dir:0, z0:0, z1:0 };
-    const charge = { active:false, dir:0, t0:0 }; // t0 in seconds (performance.now/1000)
+    const moveHold = {
+      active: false,
+      dir: 0,     // +1 (ArrowUp) or -1 (ArrowDown)
+      t0: 0       // hold start time (seconds)
+    };
+    
+    const hop = {
+      active: false,
+      frozen: false,
+      t: 0,
+      z0: 0,
+      z1: 0
+    };
     
     function easeInOutCubic(u) {
-      return u < 0.5 ? 4*u*u*u : 1 - Math.pow(-2*u + 2, 3)/2;
+      return u < 0.5 ? 4*u*u*u : 1 - Math.pow(-2*u + 2, 3) / 2;
     }
     
-    // Smooth saturating map: hold time -> 0..1
-    function charge01(holdSeconds){
-      return 1 - Math.exp(-holdSeconds / CHARGE_TAU);
+    function holdTo01(holdSeconds) {
+      // linear ramp; swap for exp if you want a different feel
+      return THREE.MathUtils.clamp(holdSeconds / RAMP_TIME, 0, 1);
     }
     
-    function startHop(dir, holdSeconds) {
-      const c = THREE.MathUtils.clamp(charge01(holdSeconds), 0, 1);
+    function computeHopDistance() {
+      if (!moveHold.active) return HOP_MIN_DIST;
+      const now = performance.now() / 1000;
+      const held = Math.max(0, now - moveHold.t0);
+      const c = holdTo01(held); // 0..1
+      return THREE.MathUtils.lerp(HOP_MIN_DIST, HOP_MAX_DIST, c);
+    }
     
-      const dist = THREE.MathUtils.lerp(HOP_MIN_DIST, HOP_MAX_DIST, c);
-      const dur  = THREE.MathUtils.lerp(HOP_MIN_DUR,  HOP_MAX_DUR,  c);
+    function startHop(dir) {
+      if (hop.active || sitLock) return;
     
       hop.active = true;
+      hop.frozen = false;
       hop.t = 0;
-      hop.dur = dur;
-      hop.dir = dir;
     
       hop.z0 = player.position.z;
     
+      const dist = computeHopDistance();
       const target = hop.z0 + dir * dist;
+    
       hop.z1 = THREE.MathUtils.clamp(
         target,
         -SLAB_LEN / 2 + PLAYER_Z_MARGIN,
          SLAB_LEN / 2 - PLAYER_Z_MARGIN
       );
-    
-      // Store hop “power” for height shaping
-      hop._c = c;
     }
+    
+    function freezeHopHorizontal() {
+      if (!hop.active || hop.frozen) return;
+    
+      const u = THREE.MathUtils.clamp(hop.t / HOP_DURATION, 0, 1);
+      const s = easeInOutCubic(u);
+      const zNow = THREE.MathUtils.lerp(hop.z0, hop.z1, s);
+    
+      hop.z0 = zNow;
+      hop.z1 = zNow;
+      hop.frozen = true;
+      player.position.z = zNow;
+    }
+
 
 
     function getTiersForN(_n) { return TIERS; }
@@ -958,8 +983,10 @@ input[type="text"]:focus{
     }
 
     function setSitting(isSitting) {
-      charge.active = false;
+      moveHold.active = false;
+      moveHold.dir = 0;
       hop.active = false;
+      hop.frozen = false;
       body.scale.set(1, 1, 1);
       if (isSitting) {
         player.position.y = playerYStanding - 6.5;
@@ -1176,48 +1203,60 @@ input[type="text"]:focus{
     // -----------------------
     window.addEventListener("keydown", (e) => {
       if (!isPlaying) return;
-
-      if (e.code === "ArrowUp" || e.code === "ArrowDown" || e.code === "ArrowLeft" || e.code === "ArrowRight" || e.code === "Space")
-              e.preventDefault();
-      if ((e.code === "ArrowUp" || e.code === "ArrowDown") && !e.repeat) {
-        const dir = (e.code === "ArrowUp") ? +1 : -1;
-        
-        // start a charge only if not mid-hop/sit
-        if (isPlaying && !sitLock && !hop.active) {
-          charge.active = true;
-          charge.dir = dir;
-          charge.t0 = performance.now() / 1000;
-        }
-      }
-      if (e.code === "ArrowUp") keys.ArrowUp = true;
-      if (e.code === "ArrowDown") keys.ArrowDown = true;
-      if (e.code === "ArrowLeft") keys.ArrowLeft = true;
-      if (e.code === "ArrowRight") keys.ArrowRight = true;
     
-      // (keep your Space/sit logic as-is)
+      if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
+    
+      if (e.code === "ArrowUp") {
+        keys.ArrowUp = true;
+    
+        if (!moveHold.active || moveHold.dir !== +1) {
+          moveHold.active = true;
+          moveHold.dir = +1;
+          moveHold.t0 = performance.now() / 1000; // (re)start ramp for this direction
+        }
+        // IMMEDIATE hop start
+        if (!hop.active && !sitLock) startHop(+1);
+      }
+    
+      if (e.code === "ArrowDown") {
+        keys.ArrowDown = true;
+    
+        if (!moveHold.active || moveHold.dir !== -1) {
+          moveHold.active = true;
+          moveHold.dir = -1;
+          moveHold.t0 = performance.now() / 1000;
+        }
+        // IMMEDIATE hop start
+        if (!hop.active && !sitLock) startHop(-1);
+      }
+    
+      // keep your Space sit logic as-is
     }, { passive: false });
     
     window.addEventListener("keyup", (e) => {
-      if (e.code === "ArrowUp" || e.code === "ArrowDown") {
-        const dir = (e.code === "ArrowUp") ? +1 : -1;
-      
-        // Release triggers the hop
-        if (charge.active && charge.dir === dir && isPlaying && !sitLock && !hop.active) {
-          const now = performance.now() / 1000;
-          const hold = Math.max(0, now - charge.t0);
-          charge.active = false;
-          startHop(dir, hold);
-        }
-      
-        // If they released the active charge key, stop charging
-        if (charge.active && charge.dir === dir) charge.active = false;
-      }
-      
       if (e.code === "ArrowUp") keys.ArrowUp = false;
       if (e.code === "ArrowDown") keys.ArrowDown = false;
-      if (e.code === "ArrowLeft") keys.ArrowLeft = false;
-      if (e.code === "ArrowRight") keys.ArrowRight = false;
+    
+      // If they stop holding movement keys, stop ramp + freeze horizontal mid-hop
+      if (e.code === "ArrowUp" || e.code === "ArrowDown") {
+        const stillHolding = keys.ArrowUp || keys.ArrowDown;
+    
+        if (!stillHolding) {
+          moveHold.active = false;
+          moveHold.dir = 0;
+          freezeHopHorizontal(); // stop horizontal immediately, finish arc
+        } else {
+          // If they released one but the other is still held, switch direction (continue hopping)
+          if (keys.ArrowUp && moveHold.dir !== +1) {
+            moveHold.active = true; moveHold.dir = +1; moveHold.t0 = performance.now()/1000;
+          }
+          if (keys.ArrowDown && moveHold.dir !== -1) {
+            moveHold.active = true; moveHold.dir = -1; moveHold.t0 = performance.now()/1000;
+          }
+        }
+      }
     });
+
 
     // -----------------------
     // Animate
@@ -1231,41 +1270,31 @@ input[type="text"]:focus{
       const dt = Math.min(0.033, clock.getDelta());
 
       if (isPlaying && !sitLock) {
-      
-        // Optional: show a little "crouch" while charging (feels toad-like)
-        if (charge.active && !hop.active) {
-          const hold = (performance.now()/1000) - charge.t0;
-          const c = charge01(Math.max(0, hold));
-          const squash = 1 - 0.10 * c;
-          body.scale.set(1, squash, 1);
-          player.position.y = playerYStanding;
-        }
-      
         if (hop.active) {
           hop.t += dt;
-          const u = Math.min(1, hop.t / hop.dur);
+          const u = Math.min(1, hop.t / HOP_DURATION);
           const s = easeInOutCubic(u);
       
-          // Horizontal travel across the hop
-          player.position.z = THREE.MathUtils.lerp(hop.z0, hop.z1, s);
-      
-          // Vertical arc: full hop regardless of distance
-          const height = THREE.MathUtils.lerp(HOP_BASE_HEIGHT, HOP_MAX_HEIGHT, hop._c ?? 0);
-          player.position.y = playerYStanding + Math.sin(Math.PI * u) * height;
-      
-          // Land
-          if (u >= 1) {
-            hop.active = false;
-            player.position.z = hop.z1;
-            player.position.y = playerYStanding;
-            body.scale.set(1, 1, 1);
+          // Horizontal: either lerp (normal) or stay frozen (release mid-hop)
+          if (!hop.frozen) {
+            player.position.z = THREE.MathUtils.lerp(hop.z0, hop.z1, s);
           }
-        }
       
-        // If not charging and not hopping, ensure normal pose
-        if (!charge.active && !hop.active) {
-          player.position.y = playerYStanding;
-          body.scale.set(1, 1, 1);
+          // Vertical: always completes the arc in the same duration
+          player.position.y = playerYStanding + Math.sin(Math.PI * u) * HOP_HEIGHT;
+      
+          if (u >= 1) {
+            // Land
+            hop.active = false;
+            hop.frozen = false;
+            player.position.y = playerYStanding;
+      
+            // Auto-chain: if still holding a movement key, start the NEXT hop immediately.
+            // Dist will be longer now because hold time has increased.
+            if (moveHold.active && (keys.ArrowUp || keys.ArrowDown)) {
+              startHop(moveHold.dir);
+            }
+          }
         }
       }
 
