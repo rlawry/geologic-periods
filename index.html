@@ -849,6 +849,7 @@
         setScore(score + gained);
         showPointsPop(`+${formatInt(gained)}`);
         newPrompt();
+        answered += 1;
       } else {
         streak = 0;
         flash("red");
@@ -856,7 +857,7 @@
         showPointsPop(`-1`);
       }
 
-      answered += 1;
+      
 
       if (answered >= totalQuestions) {
         finishGame();
