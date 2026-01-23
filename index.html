@@ -510,6 +510,19 @@ input[type="text"]:focus{
       return Math.trunc(n).toLocaleString("en-US");
     }
 
+    function isPerfectScore() {
+      // Perfect = all correct in a row (combo all N): 2^N - 1
+      const perfect = (2 ** totalQuestions) - 1;
+      return score >= perfect;
+    }
+    
+    function updateSettleButtonLabel() {
+      btnSettle.textContent = isPerfectScore()
+        ? "Print your Certificate of Perfection!"
+        : "Settle for less than perfection (print certificate)";
+    }
+
+
     // -----------------------
     // DOM
     // -----------------------
@@ -902,7 +915,7 @@ input[type="text"]:focus{
       endScore.textContent = formatInt(score);
       endTier.textContent = tier.title;
       endGrade.textContent = String(gradebookScoreFromTier(tier.grade));
-
+      updateSettleButtonLabel();
       endOverlay.classList.remove("hidden");
     }
 
