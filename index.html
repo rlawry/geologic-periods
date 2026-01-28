@@ -1140,7 +1140,7 @@ input[type="text"]:focus{
       const H = doc.internal.pageSize.getHeight();
 
       // Background + border
-      doc.setFillColor(15, 19, 26);
+      doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, W, H, "F");
 
       doc.setDrawColor(255, 255, 255);
@@ -1152,37 +1152,37 @@ input[type="text"]:focus{
       doc.rect(44, 44, W - 88, H - 88);
 
       // Title
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(34);
       doc.text("Certificate of Achievement", W / 2, 110, { align: "center" });
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(14);
-      doc.setTextColor(200, 205, 215);
+      doc.setTextColor(0, 0, 0);
       doc.text("Phanerozoic Mastery Path Challenge", W / 2, 140, { align: "center" });
 
       // Name
       doc.setFont("helvetica", "bold");
       doc.setFontSize(28);
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
       doc.text(name, W / 2, 210, { align: "center" });
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(14);
-      doc.setTextColor(200, 205, 215);
+      doc.setTextColor(0, 0, 0);
       doc.text("has earned the title:", W / 2, 240, { align: "center" });
 
       // Tier title
       doc.setFont("helvetica", "bold");
       doc.setFontSize(24);
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
       doc.text(tier.title, W / 2, 280, { align: "center" });
 
       // Details
       doc.setFont("helvetica", "normal");
       doc.setFontSize(14);
-      doc.setTextColor(220, 225, 235);
+      doc.setTextColor(0, 0, 0);
 
       const dateStr = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 
@@ -1201,9 +1201,9 @@ input[type="text"]:focus{
       }
 
       // Signature line
-      doc.setDrawColor(200, 205, 215);
+      doc.setDrawColor(20, 20, 21);
       doc.line(W/2 - 170, H - 140, W/2 + 170, H - 140);
-      doc.setTextColor(200, 205, 215);
+      doc.setTextColor(20, 20, 21);
       doc.setFontSize(12);
       doc.text("Instructor / Course", W / 2, H - 120, { align: "center" });
 
