@@ -949,14 +949,18 @@ input[type="text"]:focus{
     }
 
     function newPrompt() {
-      const ma = +(0.1 + Math.random() * (540.8)).toFixed(1);
+      const maxT = Math.round(PERIODS[0].start * 10); // 5390
+      const t = 1 + Math.floor(Math.random() * maxT); // 1..5390
+      const ma = t / 10; // 0.1..539.0
+    
       const period = getPeriodForMa(ma);
       currentPromptMa = ma;
       currentPromptPeriod = period;
-
+    
       promptMain.textContent = `Question ${answered + 1} of ${totalQuestions}: Sit at ${ma} million years ago (Ma)`;
       updateHUD();
     }
+
 
     function updateHUD() {
       uiPath.textContent = totalQuestions === 20 ? "Mastery Path (20)" : "Novice Path (10)";
